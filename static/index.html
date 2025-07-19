@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта ресурсов - организации вашего города</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --bg: #f9fafb;
+            --card-bg: #ffffff;
+            --border: #e5e7eb;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            background-color: var(--bg);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header styles */
+        header {
+            padding: 40px 0 30px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--primary);
+            cursor: pointer;
+        }
+
+        .tagline {
+            color: var(--text-light);
+            margin-bottom: 30px;
+        }
+
+        .search-container {
+            max-width: 700px;
+            margin: 0 auto 40px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 24px;
+            font-size: 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            outline: none;
+            transition: all 0.2s;
+            box-shadow: var(--shadow);
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        .search-button {
+            position: absolute;
+            right: 6px;
+            top: 6px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-button {
+            padding: 8px 16px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .filter-button:hover, .filter-button.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Loading spinner */
+        .loading {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-light);
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Main page styles */
+        .organizations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .organization-card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .organization-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .card-image {
+            height: 160px;
+            background-color: #e5e7eb;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .card-content {
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-description {
+            color: var(--text-light);
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+        }
+
+        .card-distance {
+            font-size: 14px;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .card-category {
+            font-size: 12px;
+            background-color: var(--bg);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        /* Organization detail page */
+        .detail-page {
+            display: none;
+            padding: 20px 0;
+        }
+
+        .detail-page.active {
+            display: block;
+        }
+
+        .back-button {
+            background-color: var(--border);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+
+        .back-button:hover {
+            background-color: var(--text-light);
+            color: white;
+        }
+
+        .detail-header {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .detail-title {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .detail-address {
+            color: var(--text-light);
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .contact-info {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .detail-description {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .detail-description h3 {
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .detail-description p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--text-light);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 15px;
+            }
+
+            .organizations-grid {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 16px;
+            }
+
+            .search-input {
+                padding: 14px 20px;
+                font-size: 16px;
+            }
+
+            .search-button {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+
+            .filters {
+                justify-content: flex-start;
+                overflow-x: auto;
+                padding-bottom: 10px;
+            }
+
+            .filter-button {
+                flex-shrink: 0;
+                font-size: 13px;
+                padding: 6px 14px;
+            }
+
+            .detail-header {
+                padding: 20px;
+            }
+
+            .detail-title {
+                font-size: 24px;
+            }
+
+            .contact-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .detail-description {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .organizations-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                padding: 30px 0 20px;
+            }
+
+            .logo {
+                font-size: 24px;
+            }
+
+            .search-container {
+                margin-bottom: 20px;
+            }
+
+            .card-content {
+                padding: 16px;
+            }
+
+            .card-title {
+                font-size: 16px;
+            }
+
+            .filters {
+                margin-bottom: 20px;
+            }
+        }
+
+        /* Hide/show main page */
+        .main-page.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo" onclick="showMainPage()">Карта ресурсов</div>
+            <div class="tagline">Найдите нужные организации в вашем городе</div>
+            
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Например: буллинг, детские сады, поликлиники...">
+                <button class="search-button">Найти</button>
+            </div>
+            
+            <div class="filters">
+                <button class="filter-button active" data-category="">Все</button>
+                <button class="filter-button" data-category="образование">Образование</button>
+                <button class="filter-button" data-category="медицина">Медицина</button>
+                <button class="filter-button" data-category="соцзащита">Соцзащита</button>
+                <button class="filter-button" data-category="культура">Культура</button>
+                <button class="filter-button" data-category="спорт">Спорт</button>
+            </div>
+        </header>
+
+        <!-- Main page -->
+        <main class="main-page">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Загружаем организации...</p>
+            </div>
+            
+            <div class="organizations-grid" id="organizationsGrid">
+                <!-- Organizations will be loaded here -->
+            </div>
+            
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <h3>Организации не найдены</h3>
+                <p>Попробуйте изменить поисковый запрос или фильтры</p>
+            </div>
+        </main>
+
+        <!-- Organization detail page -->
+        <div class="detail-page" id="detailPage">
+            <button class="back-button" onclick="showMainPage()">← Вернуться к поиску</button>
+            
+            <div class="detail-header">
+                <h1 class="detail-title" id="detailTitle"></h1>
+                <div class="detail-address" id="detailAddress"></div>
+                <div class="contact-info" id="contactInfo">
+                    <!-- Contact info will be populated here -->
+                </div>
+            </div>
+            
+            <div class="detail-description">
+                <h3>Описание</h3>
+                <p id="detailDescription"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - замените на ваш URL
+        const API_BASE = 'http://localhost:5000/api';
+        
+        let currentOrganizations = [];
+        let currentQuery = '';
+        let currentCategory = '';
+
+        // DOM elements
+        const loading = document.getElementById('loading');
+        const organizationsGrid = document.getElementById('organizationsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const mainPage = document.querySelector('.main-page');
+        const detailPage = document.getElementById('detailPage');
+        const searchInput = document.querySelector('.search-input');
+        const searchButton = document.querySelector('.search-button');
+        const filterButtons = document.querySelectorAll('.filter-button');
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrganizations();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Search functionality
+            searchButton.addEventListener('click', performSearch);
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') performSearch();
+            });
+
+            // Filter buttons
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    currentCategory = this.dataset.category;
+                    filterOrganizations();
+                });
+            });
+        }
+
+        // Load organizations from API
+        async function loadOrganizations(query = '', category = '') {
+            showLoading();
+            
+            try {
+                let url = `${API_BASE}/organizations`;
+                const params = new URLSearchParams();
+                
+                if (query) params.append('query', query);
+                if (category) params.append('category', category);
+                
+                if (params.toString()) {
+                    url += `?${params.toString()}`;
+                }
+
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                currentOrganizations = data.organizations || [];
+                
+                hideLoading();
+                renderOrganizations(currentOrganizations);
+                
+            } catch (error) {
+                console.error('Ошибка загрузки организаций:', error);
+                hideLoading();
+                showEmptyState();
+            }
+        }
+
+        // Perform search
+        function performSearch() {
+            currentQuery = searchInput.value.trim();
+            loadOrganizations(currentQuery, currentCategory);
+        }
+
+        // Filter organizations by category
+        function filterOrganizations() {
+            loadOrganizations(currentQuery, currentCategory);
+        }
+
+        // Render organizations grid
+        function renderOrganizations(organizations) {
+            if (!organizations || organizations.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            organizationsGrid.innerHTML = organizations.map(org => `
+                <div class="organization-card" onclick="showOrganizationDetail(${org.id})">
+                    <div class="card-image">
+                        ${org.image_url ? 
+                            `<img src="${org.image_url}" alt="${org.name}" style="width: 100%; height: 100%; object-fit: cover;">` :
+                            'Нет изображения'
+                        }
+                    </div>
+                    <div class="card-content">
+                        <h3 class="card-title">${org.name}</h3>
+                        <p class="card-description">${org.description || 'Описание отсутствует'}</p>
+                        <div class="card-footer">
+                            <span class="card-distance">${formatDistance(org.distance)}</span>
+                            <span class="card-category">${org.category || 'Организация'}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            emptyState.style.display = 'none';
+            organizationsGrid.style.display = 'grid';
+        }
+
+        // Show organization detail
+        async function showOrganizationDetail(organizationId) {
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/organizations/${organizationId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const org = data.organization;
+                
+                // Populate detail page
+                document.getElementById('detailTitle').textContent = org.name;
+                document.getElementById('detailAddress').textContent = org.address;
+                document.getElementById('detailDescription').textContent = org.description || 'Описание отсутствует';
+                
+                // Populate contact info
+                const contactInfo = document.getElementById('contactInfo');
+                contactInfo.innerHTML = '';
+                
+                if (org.contact_info) {
+                    if (org.contact_info.phone) {
+                        contactInfo.innerHTML += `
+                            <div class="contact-item">
+                                <span>📞</span>
+                                <a href="tel:${org.contact_info.phone}">${org.contact_info.phone}</a>
+                            </div>
+                        `;
+                    }
+                    if (org.contact_info.email) {
+                        contactInfo.innerHTML += `
+                            <div class="contact-item">
+                                <span>✉️</span>
+                                <a href="mailto:${org.contact_info.email}">${org.contact_info.email}</a>
+                            </div>
+                        `;
+                    }
+                    if (org.contact_info.website) {
+                        contactInfo.innerHTML += `
+                            <div class="contact-item">
+                                <span>🌐</span>
+                                <a href="${org.contact_info.website}" target="_blank" rel="noopener">Сайт</a>
+                            </div>
+                        `;
+                    }
+                }
+                
+                hideLoading();
+                showDetailPage();
+                
+            } catch (error) {
+                console.error('Ошибка загрузки организации:', error);
+                hideLoading();
+                alert('Ошибка загрузки информации об организации');
+            }
+        }
+
+        // Navigation functions
+        function showMainPage() {
+            mainPage.classList.remove('hidden');
+            detailPage.classList.remove('active');
+        }
+
+        function showDetailPage() {
+            mainPage.classList.add('hidden');
+            detailPage.classList.add('active');
+        }
+
+        // UI helper functions
+        function showLoading() {
+            loading.style.display = 'block';
+            organizationsGrid.style.display = 'none';
+            emptyState.style.display = 'none';
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showEmptyState() {
+            organizationsGrid.style.display = 'none';
+            emptyState.style.display = 'block';
+        }
+
+        function formatDistance(distance) {
+            if (!distance) return 'Расстояние неизвестно';
+            if (distance < 1) return `${Math.round(distance * 1000)} м от вас`;
+            return `${distance.toFixed(1)} км от вас`;
+        }
+    </script>
+</body>
+</html>
