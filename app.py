@@ -61,7 +61,7 @@ def create_tables():
     """Создание всех необходимых таблиц"""
     conn = db_manager.get_connection()
     with conn.cursor() as cursor:
-        # Создание таблицы категорий (ДОБАВЛЕНО)
+        # Создание таблицы категорий
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS categories (
                 id SERIAL PRIMARY KEY,
@@ -72,7 +72,7 @@ def create_tables():
             );
         """)
         
-        # Создание индекса для категорий (ДОБАВЛЕНО)
+        # Создание индекса для категорий
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);")
 
         # Создание таблицы организаций
@@ -98,7 +98,7 @@ def create_tables():
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations USING gin(to_tsvector('russian', name));
             CREATE INDEX IF NOT EXISTS idx_organizations_description ON organizations USING gin(to_tsvector('russian', description));
-            CREATE INDEX IF NOT EXISTS idx_organizations_category ON organizations(category);
+            CREATE INDEX IF NOT EXISTS idx_organizations_category ON organizations(category_id);
             CREATE INDEX IF NOT EXISTS idx_organizations_tags ON organizations USING gin(tags);
         """)
         
@@ -137,6 +137,30 @@ def create_tables():
         """)
         
         logger.info("Все таблицы созданы успешно")
+
+def create_default_categories():
+    """Создание категорий по умолчанию"""
+    default_categories = [
+        {'name': 'Медицинские услуги', 'description': 'Больницы, поликлиники, медицинские центры'},
+        {'name': 'Образование', 'description': 'Школы, вузы, курсы, дополнительное образование'},
+        {'name': 'Социальные услуги', 'description': 'Социальная защита, помощь семьям, инвалидам'},
+        {'name': 'Юридические услуги', 'description': 'Юридическая помощь, консультации'},
+        {'name': 'Культура и досуг', 'description': 'Театры, музеи, культурные центры'},
+        {'name': 'Спорт и фитнес', 'description': 'Спортивные клубы, фитнес-центры'},
+        {'name': 'Трудоустройство', 'description': 'Центры занятости, кадровые агентства'},
+        {'name': 'Финансовые услуги', 'description': 'Банки, микрофинансовые организации'},
+    ]
+    
+    conn = db_manager.get_connection()
+    with conn.cursor() as cursor:
+        for category in default_categories:
+            cursor.execute("""
+                INSERT INTO categories (name, description) 
+                VALUES (%s, %s) 
+                ON CONFLICT (name) DO NOTHING
+            """, (category['name'], category['description']))
+        
+        logger.info("Категории по умолчанию созданы")
 
 def create_default_admin():
     """Создание администратора по умолчанию"""
@@ -265,7 +289,7 @@ def admin_index():
 
 @app.route('/api/organizations', methods=['GET'])
 def get_organizations():
-    """Получение списка организаций с поиском по тегам"""
+    """Получение списка организаций с поиском по категориям и тегам"""
     try:
         category = request.args.get('category', '').strip()
         limit = min(int(request.args.get('limit', 50)), 100)
@@ -274,21 +298,26 @@ def get_organizations():
         
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             if category:
-                # Поиск по тегам для категорий из опроса
+                # Поиск по названию категории или по тегам
                 cursor.execute("""
-                    SELECT id, name, category, description, address, phone, email, website, services
-                    FROM organizations 
-                    WHERE is_active = TRUE AND %s = ANY(tags)
-                    ORDER BY created_at DESC 
+                    SELECT o.id, o.name, c.name as category, o.description, o.address, 
+                           o.phone, o.email, o.website, o.services
+                    FROM organizations o
+                    LEFT JOIN categories c ON o.category_id = c.id
+                    WHERE o.is_active = TRUE 
+                    AND (c.name ILIKE %s OR %s = ANY(o.tags))
+                    ORDER BY o.created_at DESC 
                     LIMIT %s
-                """, (category, limit))
+                """, (f'%{category}%', category, limit))
             else:
                 # Все организации
                 cursor.execute("""
-                    SELECT id, name, category, description, address, phone, email, website, services
-                    FROM organizations 
-                    WHERE is_active = TRUE
-                    ORDER BY created_at DESC 
+                    SELECT o.id, o.name, c.name as category, o.description, o.address, 
+                           o.phone, o.email, o.website, o.services
+                    FROM organizations o
+                    LEFT JOIN categories c ON o.category_id = c.id
+                    WHERE o.is_active = TRUE
+                    ORDER BY o.created_at DESC 
                     LIMIT %s
                 """, (limit,))
             
@@ -320,18 +349,20 @@ def search_organizations():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             # Полнотекстовый поиск по названию, описанию и услугам
             cursor.execute("""
-                SELECT id, name, category, description, address, phone, email, website, services,
-                       ts_rank(to_tsvector('russian', name || ' ' || description || ' ' || services), plainto_tsquery('russian', %s)) as rank
-                FROM organizations 
-                WHERE is_active = TRUE 
+                SELECT o.id, o.name, c.name as category, o.description, o.address, 
+                       o.phone, o.email, o.website, o.services,
+                       ts_rank(to_tsvector('russian', o.name || ' ' || o.description || ' ' || COALESCE(o.services, '')), plainto_tsquery('russian', %s)) as rank
+                FROM organizations o
+                LEFT JOIN categories c ON o.category_id = c.id
+                WHERE o.is_active = TRUE 
                 AND (
-                    to_tsvector('russian', name || ' ' || description || ' ' || services) @@ plainto_tsquery('russian', %s)
-                    OR name ILIKE %s
-                    OR description ILIKE %s
-                    OR services ILIKE %s
-                    OR category ILIKE %s
+                    to_tsvector('russian', o.name || ' ' || o.description || ' ' || COALESCE(o.services, '')) @@ plainto_tsquery('russian', %s)
+                    OR o.name ILIKE %s
+                    OR o.description ILIKE %s
+                    OR o.services ILIKE %s
+                    OR c.name ILIKE %s
                 )
-                ORDER BY rank DESC, name
+                ORDER BY rank DESC, o.name
                 LIMIT %s
             """, (query, query, f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%', limit))
             
@@ -361,9 +392,11 @@ def get_organization(org_id: int):
         
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute("""
-                SELECT id, name, category, description, address, phone, email, website, services
-                FROM organizations
-                WHERE id = %s AND is_active = TRUE
+                SELECT o.id, o.name, c.name as category, o.description, o.address, 
+                       o.phone, o.email, o.website, o.services
+                FROM organizations o
+                LEFT JOIN categories c ON o.category_id = c.id
+                WHERE o.id = %s AND o.is_active = TRUE
             """, (org_id,))
             
             result = cursor.fetchone()
@@ -381,20 +414,26 @@ def get_organization(org_id: int):
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
-    """Получение уникальных категорий"""
+    """Получение всех категорий"""
     try:
         conn = db_manager.get_connection()
         
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute("""
-                SELECT DISTINCT category as name, category as slug
-                FROM organizations 
-                WHERE is_active = TRUE 
-                ORDER BY category
+                SELECT c.id, c.name, c.description, COUNT(o.id) as organization_count
+                FROM categories c
+                LEFT JOIN organizations o ON c.id = o.category_id AND o.is_active = TRUE
+                GROUP BY c.id, c.name, c.description
+                ORDER BY c.name
             """)
             
             results = cursor.fetchall()
-            categories = [dict(row) for row in results]
+            categories = []
+            
+            for row in results:
+                category = dict(row)
+                category['slug'] = category['name'].lower().replace(' ', '-')
+                categories.append(category)
             
             return jsonify({'categories': categories})
         
@@ -410,11 +449,15 @@ def health_check():
         with conn.cursor() as cursor:
             cursor.execute("SELECT COUNT(*) FROM organizations WHERE is_active = TRUE")
             org_count = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM categories")
+            cat_count = cursor.fetchone()[0]
         
         return jsonify({
             'status': 'ok',
             'database': 'connected',
             'organizations_count': org_count,
+            'categories_count': cat_count,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -552,6 +595,81 @@ def get_admin_profile():
         
     except Exception as e:
         logger.error(f"Ошибка получения профиля: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/categories', methods=['GET'])
+@require_auth
+def get_admin_categories():
+    """Получение всех категорий для администратора"""
+    try:
+        conn = db_manager.get_connection()
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""
+                SELECT c.id, c.name, c.description, c.created_at, c.updated_at,
+                       COUNT(o.id) as organization_count
+                FROM categories c
+                LEFT JOIN organizations o ON c.id = o.category_id
+                GROUP BY c.id, c.name, c.description, c.created_at, c.updated_at
+                ORDER BY c.name
+            """)
+            
+            results = cursor.fetchall()
+            categories = []
+            
+            for row in results:
+                category = dict(row)
+                if category['created_at']:
+                    category['created_at'] = category['created_at'].isoformat()
+                if category['updated_at']:
+                    category['updated_at'] = category['updated_at'].isoformat()
+                categories.append(category)
+        
+        return jsonify({'categories': categories})
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения категорий: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/categories', methods=['POST'])
+@require_auth
+def create_category():
+    """Создание новой категории"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Данные не предоставлены'}), 400
+        
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        
+        if not name:
+            return jsonify({'error': 'Название категории обязательно'}), 400
+        
+        conn = db_manager.get_connection()
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            try:
+                cursor.execute("""
+                    INSERT INTO categories (name, description) 
+                    VALUES (%s, %s)
+                    RETURNING id, name, description, created_at
+                """, (name, description))
+                
+                result = cursor.fetchone()
+                category = dict(result)
+                category['created_at'] = category['created_at'].isoformat()
+                
+                return jsonify({
+                    'message': 'Категория успешно создана',
+                    'category': category
+                }), 201
+                
+            except psycopg2.IntegrityError:
+                return jsonify({'error': 'Категория с таким названием уже существует'}), 400
+        
+    except Exception as e:
+        logger.error(f"Ошибка создания категории: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 @app.route('/api/admin/organizations', methods=['GET'])
