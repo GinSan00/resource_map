@@ -619,9 +619,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Ошибка запуска сервера: {e}")
     finally:
-        db_manager.close_connection() 
-                    LIMIT %s
-                """, (f'%{category}%', category, limit))
+        db_manager.close_connection()       
+                """LIMIT %s
+                , (f'%{category}%', category, limit))
             else:
                 # Все организации
                 cursor.execute("""
