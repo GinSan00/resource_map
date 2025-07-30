@@ -879,16 +879,22 @@
                     // Обрабатываем разные форматы ответа
                     let rawCategories = data.categories || data || [];
                     
-                    // Если категории - это объекты, извлекаем нужные поля
+                    // Если категории - это объекты с id и name
                     categories = rawCategories.map(category => {
-                        if (typeof category === 'string') {
-                            return category;
-                        } else if (typeof category === 'object' && category !== null) {
-                            // Пробуем разные возможные поля
-                            return category.name || category.category || category.title || category.value || String(category);
+                        if (typeof category === 'object' && category !== null) {
+                            return {
+                                id: category.id,
+                                name: category.name || category.category || category.title || String(category)
+                            };
+                        } else if (typeof category === 'string') {
+                            // Если сервер возвращает только строки, создаем объект
+                            return {
+                                id: category, // временно используем название как ID
+                                name: category
+                            };
                         }
-                        return String(category);
-                    }).filter(cat => cat && cat.trim()); // Убираем пустые значения
+                        return null;
+                    }).filter(cat => cat && cat.name && cat.name.trim()); // Убираем пустые значения
                     
                     console.log('Обработанные категории:', categories); // Для отладки
                     
@@ -917,17 +923,18 @@
             
             // Заполняем опциями
             categories.forEach(category => {
-                if (category && typeof category === 'string' && category.trim()) {
-                    // Для фильтра
+                if (category && category.name && category.name.trim()) {
+                    // Для фильтра (используем название для фильтрации)
                     const filterOption = document.createElement('option');
-                    filterOption.value = category;
-                    filterOption.textContent = category;
+                    filterOption.value = category.name;
+                    filterOption.textContent = category.name;
                     categoryFilter.appendChild(filterOption);
                     
-                    // Для формы
+                    // Для формы (используем ID как value)
                     const formOption = document.createElement('option');
-                    formOption.value = category;
-                    formOption.textContent = category;
+                    formOption.value = category.id;
+                    formOption.textContent = category.name;
+                    formOption.setAttribute('data-name', category.name); // сохраняем название для поиска
                     orgCategorySelect.appendChild(formOption);
                 }
             });
@@ -1213,13 +1220,36 @@
                     
                     // Устанавливаем категорию в селекте
                     const categorySelect = document.getElementById('orgCategory');
-                    categorySelect.value = org.category || '';
                     
-                    // Если категория не найдена в списке, добавляем её
-                    if (org.category && !categories.includes(org.category)) {
+                    // Ищем категорию по ID или по названию
+                    let categoryFound = false;
+                    
+                    // Сначала пробуем найти по category_id
+                    if (org.category_id) {
+                        categorySelect.value = org.category_id;
+                        if (categorySelect.value === String(org.category_id)) {
+                            categoryFound = true;
+                        }
+                    }
+                    
+                    // Если не найдено по ID, пробуем найти по названию категории
+                    if (!categoryFound && org.category) {
+                        const options = categorySelect.options;
+                        for (let i = 0; i < options.length; i++) {
+                            if (options[i].getAttribute('data-name') === org.category || 
+                                options[i].textContent === org.category) {
+                                categorySelect.selectedIndex = i;
+                                categoryFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Если категория не найдена в списке, добавляем её временно
+                    if (!categoryFound && (org.category || org.category_id)) {
                         const option = document.createElement('option');
-                        option.value = org.category;
-                        option.textContent = org.category;
+                        option.value = org.category_id || org.category;
+                        option.textContent = org.category || `ID: ${org.category_id}`;
                         option.selected = true;
                         categorySelect.appendChild(option);
                     }
@@ -1244,16 +1274,16 @@
             
             // Проверяем обязательные поля
             const name = formData.get('name');
-            const category = document.getElementById('orgCategory').value;
+            const categoryId = document.getElementById('orgCategory').value;
             const description = formData.get('description');
             const address = formData.get('address');
             
-            console.log('Проверка полей:', { name, category, description, address }); // Для отладки
+            console.log('Проверка полей:', { name, categoryId, description, address }); // Для отладки
             
-            if (!name || !category || !description || !address) {
+            if (!name || !categoryId || !description || !address) {
                 let missingFields = [];
                 if (!name) missingFields.push('Название');
-                if (!category) missingFields.push('Категория');
+                if (!categoryId) missingFields.push('Категория');
                 if (!description) missingFields.push('Описание');
                 if (!address) missingFields.push('Адрес');
                 
@@ -1264,7 +1294,7 @@
             // Подготавливаем данные
             const data = {
                 name: name,
-                category: category,
+                category_id: parseInt(categoryId), // Отправляем category_id как число
                 description: description,
                 address: address,
                 phone: formData.get('phone'),
@@ -1274,6 +1304,8 @@
                 tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag) : [],
                 is_active: document.getElementById('orgIsActive').checked
             };
+            
+            console.log('Данные для отправки:', data); // Для отладки
             
             try {
                 const url = isEditing 
