@@ -61,12 +61,26 @@ def create_tables():
     """Создание всех необходимых таблиц"""
     conn = db_manager.get_connection()
     with conn.cursor() as cursor:
+        # Создание таблицы категорий (ДОБАВЛЕНО)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) UNIQUE NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+        """)
+        
+        # Создание индекса для категорий (ДОБАВЛЕНО)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);")
+
         # Создание таблицы организаций
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS organizations (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
-                category VARCHAR(100) NOT NULL,
+                category_id INTEGER REFERENCES categories(id),  # ИЗМЕНЕНО: внешний ключ
                 description TEXT NOT NULL,
                 address VARCHAR(500) NOT NULL,
                 phone VARCHAR(50),
