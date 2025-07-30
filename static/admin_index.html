@@ -1248,8 +1248,16 @@
             const description = formData.get('description');
             const address = formData.get('address');
             
+            console.log('Проверка полей:', { name, category, description, address }); // Для отладки
+            
             if (!name || !category || !description || !address) {
-                showAlert('organizationAlert', 'Пожалуйста, заполните все обязательные поля', 'error');
+                let missingFields = [];
+                if (!name) missingFields.push('Название');
+                if (!category) missingFields.push('Категория');
+                if (!description) missingFields.push('Описание');
+                if (!address) missingFields.push('Адрес');
+                
+                showAlert('organizationAlert', `Пожалуйста, заполните обязательные поля: ${missingFields.join(', ')}`, 'error');
                 return;
             }
             
