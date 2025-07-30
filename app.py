@@ -307,321 +307,8 @@ def get_organizations():
                     WHERE o.is_active = TRUE 
                     AND (c.name ILIKE %s OR %s = ANY(o.tags))
                     ORDER BY o.created_at DESC
-                LIMIT %s OFFSET %s
-            """, params + [limit, offset])
-            
-            organizations = [dict(row) for row in cursor.fetchall()]
-            
-            # Преобразуем даты в строки
-            for org in organizations:
-                if org['created_at']:
-                    org['created_at'] = org['created_at'].isoformat()
-                if org['updated_at']:
-                    org['updated_at'] = org['updated_at'].isoformat()
-        
-        return jsonify({
-            'organizations': organizations,
-            'total': total,
-            'page': page,
-            'limit': limit,
-            'pages': (total + limit - 1) // limit
-        })
-        
-    except Exception as e:
-        logger.error(f"Ошибка получения организаций: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-@app.route('/api/admin/organizations', methods=['POST'])
-@require_auth
-def create_organization():
-    """Создание новой организации"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Данные не предоставлены'}), 400
-        
-        # Валидация обязательных полей
-        required_fields = ['name', 'category_id', 'description', 'address']
-        for field in required_fields:
-            if field == 'category_id':
-                if not data.get(field) or not str(data.get(field)).isdigit():
-                    return jsonify({'error': 'Категория обязательна для выбора'}), 400
-            else:
-                if not data.get(field, '').strip():
-                    return jsonify({'error': f'Поле "{field}" обязательно для заполнения'}), 400
-        
-        # Валидация email
-        email = data.get('email', '').strip()
-        if email and not validate_email(email):
-            return jsonify({'error': 'Некорректный email адрес'}), 400
-        
-        conn = db_manager.get_connection()
-        
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Проверяем существование категории
-            cursor.execute("SELECT id FROM categories WHERE id = %s", (data['category_id'],))
-            if not cursor.fetchone():
-                return jsonify({'error': 'Указанная категория не существует'}), 400
-            
-            cursor.execute("""
-                INSERT INTO organizations 
-                (name, category_id, description, address, phone, email, website, services, tags, is_active) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id, name, created_at
-            """, (
-                data['name'].strip(),
-                data['category_id'],
-                data['description'].strip(),
-                data['address'].strip(),
-                data.get('phone', '').strip() or None,
-                email or None,
-                data.get('website', '').strip() or None,
-                data.get('services', '').strip() or None,
-                data.get('tags', []),
-                data.get('is_active', True)
-            ))
-            
-            result = cursor.fetchone()
-            organization = dict(result)
-            organization['created_at'] = organization['created_at'].isoformat()
-            
-            return jsonify({
-                'message': 'Организация успешно создана',
-                'organization': organization
-            }), 201
-        
-    except Exception as e:
-        logger.error(f"Ошибка создания организации: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-@app.route('/api/admin/organizations/<int:org_id>', methods=['PUT'])
-@require_auth
-def update_organization(org_id: int):
-    """Обновление организации"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Данные не предоставлены'}), 400
-        
-        # Валидация категории
-        if data.get('category_id') and not str(data.get('category_id')).isdigit():
-            return jsonify({'error': 'Некорректный ID категории'}), 400
-        
-        # Валидация email
-        email = data.get('email', '').strip()
-        if email and not validate_email(email):
-            return jsonify({'error': 'Некорректный email адрес'}), 400
-        
-        conn = db_manager.get_connection()
-        
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Проверяем существование организации
-            cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
-            if not cursor.fetchone():
-                return jsonify({'error': 'Организация не найдена'}), 404
-            
-            # Проверяем существование категории
-            if data.get('category_id'):
-                cursor.execute("SELECT id FROM categories WHERE id = %s", (data['category_id'],))
-                if not cursor.fetchone():
-                    return jsonify({'error': 'Указанная категория не существует'}), 400
-            
-            # Обновляем организацию
-            cursor.execute("""
-                UPDATE organizations 
-                SET name = %s, category_id = %s, description = %s, address = %s, 
-                    phone = %s, email = %s, website = %s, services = %s, 
-                    tags = %s, is_active = %s, updated_at = NOW()
-                WHERE id = %s
-                RETURNING id, name, updated_at
-            """, (
-                data.get('name', '').strip(),
-                data.get('category_id'),
-                data.get('description', '').strip(),
-                data.get('address', '').strip(),
-                data.get('phone', '').strip() or None,
-                email or None,
-                data.get('website', '').strip() or None,
-                data.get('services', '').strip() or None,
-                data.get('tags', []),
-                data.get('is_active', True),
-                org_id
-            ))
-            
-            result = cursor.fetchone()
-            organization = dict(result)
-            organization['updated_at'] = organization['updated_at'].isoformat()
-            
-            return jsonify({
-                'message': 'Организация успешно обновлена',
-                'organization': organization
-            })
-        
-    except Exception as e:
-        logger.error(f"Ошибка обновления организации {org_id}: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-@app.route('/api/admin/organizations/<int:org_id>', methods=['DELETE'])
-@require_auth
-def delete_organization(org_id: int):
-    """Удаление организации"""
-    try:
-        conn = db_manager.get_connection()
-        
-        with conn.cursor() as cursor:
-            # Проверяем существование организации
-            cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
-            if not cursor.fetchone():
-                return jsonify({'error': 'Организация не найдена'}), 404
-            
-            # Удаляем организацию
-            cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
-            
-            return jsonify({'message': 'Организация успешно удалена'})
-        
-    except Exception as e:
-        logger.error(f"Ошибка удаления организации {org_id}: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-@app.route('/api/admin/organizations/<int:org_id>/toggle', methods=['PATCH'])
-@require_auth
-def toggle_organization_status(org_id: int):
-    """Переключение статуса активности организации"""
-    try:
-        conn = db_manager.get_connection()
-        
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Получаем текущий статус
-            cursor.execute("SELECT id, is_active FROM organizations WHERE id = %s", (org_id,))
-            org = cursor.fetchone()
-            
-            if not org:
-                return jsonify({'error': 'Организация не найдена'}), 404
-            
-            # Переключаем статус
-            new_status = not org['is_active']
-            cursor.execute("""
-                UPDATE organizations 
-                SET is_active = %s, updated_at = NOW()
-                WHERE id = %s
-                RETURNING id, name, is_active
-            """, (new_status, org_id))
-            
-            result = cursor.fetchone()
-            organization = dict(result)
-            
-            status_text = "активирована" if new_status else "деактивирована"
-            
-            return jsonify({
-                'message': f'Организация успешно {status_text}',
-                'organization': organization
-            })
-        
-    except Exception as e:
-        logger.error(f"Ошибка переключения статуса организации {org_id}: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-@app.route('/api/admin/stats', methods=['GET'])
-@require_auth
-def get_admin_stats():
-    """Получение статистики для администратора"""
-    try:
-        conn = db_manager.get_connection()
-        
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Общая статистика
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total_organizations,
-                    COUNT(*) FILTER (WHERE is_active = TRUE) as active_organizations,
-                    COUNT(*) FILTER (WHERE is_active = FALSE) as inactive_organizations,
-                    COUNT(DISTINCT category_id) as total_categories
-                FROM organizations
-            """)
-            stats = cursor.fetchone()
-            
-            # Статистика по категориям
-            cursor.execute("""
-                SELECT c.name as category, COUNT(o.id) as count
-                FROM categories c
-                LEFT JOIN organizations o ON c.id = o.category_id AND o.is_active = TRUE
-                GROUP BY c.id, c.name
-                ORDER BY count DESC
-            """)
-            categories = [dict(row) for row in cursor.fetchall()]
-            
-            # Последние организации
-            cursor.execute("""
-                SELECT o.id, o.name, c.name as category, o.created_at
-                FROM organizations o
-                LEFT JOIN categories c ON o.category_id = c.id
-                ORDER BY o.created_at DESC
-                LIMIT 5
-            """)
-            recent_orgs = []
-            for row in cursor.fetchall():
-                org = dict(row)
-                org['created_at'] = org['created_at'].isoformat()
-                recent_orgs.append(org)
-        
-        return jsonify({
-            'stats': dict(stats),
-            'categories': categories,
-            'recent_organizations': recent_orgs
-        })
-        
-    except Exception as e:
-        logger.error(f"Ошибка получения статистики: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-# ===============================
-# ОБРАБОТЧИКИ ОШИБОК
-# ===============================
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Endpoint не найден'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
-
-# ===============================
-# ЗАПУСК ПРИЛОЖЕНИЯ
-# ===============================
-
-if __name__ == '__main__':
-    try:
-        # Создание всех таблиц
-        create_tables()
-        
-        # Создание категорий по умолчанию
-        create_default_categories()
-        
-        # Создание администратора по умолчанию
-        create_default_admin()
-        
-        logger.info("Объединенный сервер запускается...")
-        logger.info("Доступные endpoints:")
-        logger.info("  - Public API: http://localhost:5000/api/")
-        logger.info("  - Admin API: http://localhost:5000/api/admin/")
-        logger.info("  - Frontend: http://localhost:5000/")
-        logger.info("  - Admin Panel: http://localhost:5000/admin")
-        logger.info("  - Admin credentials: admin/admin123")
-        
-        # Запуск сервера
-        app.run(
-            host='0.0.0.0',
-            port=int(os.getenv('PORT', 5000)),
-            debug=os.getenv('DEBUG', 'False').lower() == 'true'
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка запуска сервера: {e}")
-    finally:
-        db_manager.close_connection()       
-                """LIMIT %s
-                , (f'%{category}%', category, limit))
+                    LIMIT %s
+                """, (f'%{category}%', category, limit))
             else:
                 # Все организации
                 cursor.execute("""
@@ -1043,3 +730,316 @@ def get_admin_organizations():
                 LEFT JOIN categories c ON o.category_id = c.id
                 {where_clause}
                 ORDER BY o.created_at DESC
+                LIMIT %s OFFSET %s
+            """, params + [limit, offset])
+            
+            organizations = [dict(row) for row in cursor.fetchall()]
+            
+            # Преобразуем даты в строки
+            for org in organizations:
+                if org['created_at']:
+                    org['created_at'] = org['created_at'].isoformat()
+                if org['updated_at']:
+                    org['updated_at'] = org['updated_at'].isoformat()
+        
+        return jsonify({
+            'organizations': organizations,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'pages': (total + limit - 1) // limit
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения организаций: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/organizations', methods=['POST'])
+@require_auth
+def create_organization():
+    """Создание новой организации"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Данные не предоставлены'}), 400
+        
+        # Валидация обязательных полей
+        required_fields = ['name', 'category_id', 'description', 'address']
+        for field in required_fields:
+            if field == 'category_id':
+                if not data.get(field) or not str(data.get(field)).isdigit():
+                    return jsonify({'error': 'Категория обязательна для выбора'}), 400
+            else:
+                if not data.get(field, '').strip():
+                    return jsonify({'error': f'Поле "{field}" обязательно для заполнения'}), 400
+        
+        # Валидация email
+        email = data.get('email', '').strip()
+        if email and not validate_email(email):
+            return jsonify({'error': 'Некорректный email адрес'}), 400
+        
+        conn = db_manager.get_connection()
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Проверяем существование категории
+            cursor.execute("SELECT id FROM categories WHERE id = %s", (data['category_id'],))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Указанная категория не существует'}), 400
+            
+            cursor.execute("""
+                INSERT INTO organizations 
+                (name, category_id, description, address, phone, email, website, services, tags, is_active) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, name, created_at
+            """, (
+                data['name'].strip(),
+                data['category_id'],
+                data['description'].strip(),
+                data['address'].strip(),
+                data.get('phone', '').strip() or None,
+                email or None,
+                data.get('website', '').strip() or None,
+                data.get('services', '').strip() or None,
+                data.get('tags', []),
+                data.get('is_active', True)
+            ))
+            
+            result = cursor.fetchone()
+            organization = dict(result)
+            organization['created_at'] = organization['created_at'].isoformat()
+            
+            return jsonify({
+                'message': 'Организация успешно создана',
+                'organization': organization
+            }), 201
+        
+    except Exception as e:
+        logger.error(f"Ошибка создания организации: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/organizations/<int:org_id>', methods=['PUT'])
+@require_auth
+def update_organization(org_id: int):
+    """Обновление организации"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Данные не предоставлены'}), 400
+        
+        # Валидация категории
+        if data.get('category_id') and not str(data.get('category_id')).isdigit():
+            return jsonify({'error': 'Некорректный ID категории'}), 400
+        
+        # Валидация email
+        email = data.get('email', '').strip()
+        if email and not validate_email(email):
+            return jsonify({'error': 'Некорректный email адрес'}), 400
+        
+        conn = db_manager.get_connection()
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Проверяем существование организации
+            cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Организация не найдена'}), 404
+            
+            # Проверяем существование категории
+            if data.get('category_id'):
+                cursor.execute("SELECT id FROM categories WHERE id = %s", (data['category_id'],))
+                if not cursor.fetchone():
+                    return jsonify({'error': 'Указанная категория не существует'}), 400
+            
+            # Обновляем организацию
+            cursor.execute("""
+                UPDATE organizations 
+                SET name = %s, category_id = %s, description = %s, address = %s, 
+                    phone = %s, email = %s, website = %s, services = %s, 
+                    tags = %s, is_active = %s, updated_at = NOW()
+                WHERE id = %s
+                RETURNING id, name, updated_at
+            """, (
+                data.get('name', '').strip(),
+                data.get('category_id'),
+                data.get('description', '').strip(),
+                data.get('address', '').strip(),
+                data.get('phone', '').strip() or None,
+                email or None,
+                data.get('website', '').strip() or None,
+                data.get('services', '').strip() or None,
+                data.get('tags', []),
+                data.get('is_active', True),
+                org_id
+            ))
+            
+            result = cursor.fetchone()
+            organization = dict(result)
+            organization['updated_at'] = organization['updated_at'].isoformat()
+            
+            return jsonify({
+                'message': 'Организация успешно обновлена',
+                'organization': organization
+            })
+        
+    except Exception as e:
+        logger.error(f"Ошибка обновления организации {org_id}: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/organizations/<int:org_id>', methods=['DELETE'])
+@require_auth
+def delete_organization(org_id: int):
+    """Удаление организации"""
+    try:
+        conn = db_manager.get_connection()
+        
+        with conn.cursor() as cursor:
+            # Проверяем существование организации
+            cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Организация не найдена'}), 404
+            
+            # Удаляем организацию
+            cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
+            
+            return jsonify({'message': 'Организация успешно удалена'})
+        
+    except Exception as e:
+        logger.error(f"Ошибка удаления организации {org_id}: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/organizations/<int:org_id>/toggle', methods=['PATCH'])
+@require_auth
+def toggle_organization_status(org_id: int):
+    """Переключение статуса активности организации"""
+    try:
+        conn = db_manager.get_connection()
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Получаем текущий статус
+            cursor.execute("SELECT id, is_active FROM organizations WHERE id = %s", (org_id,))
+            org = cursor.fetchone()
+            
+            if not org:
+                return jsonify({'error': 'Организация не найдена'}), 404
+            
+            # Переключаем статус
+            new_status = not org['is_active']
+            cursor.execute("""
+                UPDATE organizations 
+                SET is_active = %s, updated_at = NOW()
+                WHERE id = %s
+                RETURNING id, name, is_active
+            """, (new_status, org_id))
+            
+            result = cursor.fetchone()
+            organization = dict(result)
+            
+            status_text = "активирована" if new_status else "деактивирована"
+            
+            return jsonify({
+                'message': f'Организация успешно {status_text}',
+                'organization': organization
+            })
+        
+    except Exception as e:
+        logger.error(f"Ошибка переключения статуса организации {org_id}: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/admin/stats', methods=['GET'])
+@require_auth
+def get_admin_stats():
+    """Получение статистики для администратора"""
+    try:
+        conn = db_manager.get_connection()
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Общая статистика
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_organizations,
+                    COUNT(*) FILTER (WHERE is_active = TRUE) as active_organizations,
+                    COUNT(*) FILTER (WHERE is_active = FALSE) as inactive_organizations,
+                    COUNT(DISTINCT category_id) as total_categories
+                FROM organizations
+            """)
+            stats = cursor.fetchone()
+            
+            # Статистика по категориям
+            cursor.execute("""
+                SELECT c.name as category, COUNT(o.id) as count
+                FROM categories c
+                LEFT JOIN organizations o ON c.id = o.category_id AND o.is_active = TRUE
+                GROUP BY c.id, c.name
+                ORDER BY count DESC
+            """)
+            categories = [dict(row) for row in cursor.fetchall()]
+            
+            # Последние организации
+            cursor.execute("""
+                SELECT o.id, o.name, c.name as category, o.created_at
+                FROM organizations o
+                LEFT JOIN categories c ON o.category_id = c.id
+                ORDER BY o.created_at DESC
+                LIMIT 5
+            """)
+            recent_orgs = []
+            for row in cursor.fetchall():
+                org = dict(row)
+                org['created_at'] = org['created_at'].isoformat()
+                recent_orgs.append(org)
+        
+        return jsonify({
+            'stats': dict(stats),
+            'categories': categories,
+            'recent_organizations': recent_orgs
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+# ===============================
+# ОБРАБОТЧИКИ ОШИБОК
+# ===============================
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint не найден'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+# ===============================
+# ЗАПУСК ПРИЛОЖЕНИЯ
+# ===============================
+
+if __name__ == '__main__':
+    try:
+        # Создание всех таблиц
+        create_tables()
+        
+        # Создание категорий по умолчанию
+        create_default_categories()
+        
+        # Создание администратора по умолчанию
+        create_default_admin()
+        
+        logger.info("Объединенный сервер запускается...")
+        logger.info("Доступные endpoints:")
+        logger.info("  - Public API: http://localhost:5000/api/")
+        logger.info("  - Admin API: http://localhost:5000/api/admin/")
+        logger.info("  - Frontend: http://localhost:5000/")
+        logger.info("  - Admin Panel: http://localhost:5000/admin")
+        logger.info("  - Admin credentials: admin/admin123")
+        
+        # Запуск сервера
+        app.run(
+            host='0.0.0.0',
+            port=int(os.getenv('PORT', 5000)),
+            debug=os.getenv('DEBUG', 'False').lower() == 'true'
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка запуска сервера: {e}")
+    finally:
+        db_manager.close_connection()
