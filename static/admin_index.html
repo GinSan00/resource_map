@@ -874,12 +874,28 @@
                 const response = await fetch(`${API_BASE_URL}/categories`);
                 if (response.ok) {
                     const data = await response.json();
-                    categories = data.categories || [];
+                    console.log('Полученные данные категорий:', data); // Для отладки
+                    
+                    // Обрабатываем разные форматы ответа
+                    let rawCategories = data.categories || data || [];
+                    
+                    // Если категории - это объекты, извлекаем нужные поля
+                    categories = rawCategories.map(category => {
+                        if (typeof category === 'string') {
+                            return category;
+                        } else if (typeof category === 'object' && category !== null) {
+                            // Пробуем разные возможные поля
+                            return category.name || category.category || category.title || category.value || String(category);
+                        }
+                        return String(category);
+                    }).filter(cat => cat && cat.trim()); // Убираем пустые значения
+                    
+                    console.log('Обработанные категории:', categories); // Для отладки
                     
                     // Обновляем селекты категорий
                     updateCategorySelects();
                 } else {
-                    console.error('Ошибка загрузки категорий');
+                    console.error('Ошибка загрузки категорий, статус:', response.status);
                     // В случае ошибки используем пустой массив
                     categories = [];
                 }
@@ -901,18 +917,22 @@
             
             // Заполняем опциями
             categories.forEach(category => {
-                // Для фильтра
-                const filterOption = document.createElement('option');
-                filterOption.value = category;
-                filterOption.textContent = category;
-                categoryFilter.appendChild(filterOption);
-                
-                // Для формы
-                const formOption = document.createElement('option');
-                formOption.value = category;
-                formOption.textContent = category;
-                orgCategorySelect.appendChild(formOption);
+                if (category && typeof category === 'string' && category.trim()) {
+                    // Для фильтра
+                    const filterOption = document.createElement('option');
+                    filterOption.value = category;
+                    filterOption.textContent = category;
+                    categoryFilter.appendChild(filterOption);
+                    
+                    // Для формы
+                    const formOption = document.createElement('option');
+                    formOption.value = category;
+                    formOption.textContent = category;
+                    orgCategorySelect.appendChild(formOption);
+                }
             });
+            
+            console.log('Селекты категорий обновлены, количество категорий:', categories.length);
         }
 
         // Проверка авторизации
