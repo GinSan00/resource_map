@@ -80,7 +80,7 @@ def create_tables():
             CREATE TABLE IF NOT EXISTS organizations (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
-                category_id INTEGER REFERENCES categories(id),  # ИЗМЕНЕНО: внешний ключ
+                category_id INTEGER REFERENCES categories(id),
                 description TEXT NOT NULL,
                 address VARCHAR(500) NOT NULL,
                 phone VARCHAR(50),
