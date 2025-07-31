@@ -1165,18 +1165,27 @@
         }
 
         async function submitSurvey(finalCategory) {
-            surveyData.finalCategory = finalCategory;
-            showLoading(true);
-            
-            try {
-                await loadOrganizationsByCategory(finalCategory);
-                closeSurvey();
-            } catch (error) {
-                // Ошибка уже обработана в loadOrganizationsByCategory
-            } finally {
-                showLoading(false);
-            }
-        }
+    surveyData.finalCategory = finalCategory;
+    
+    // Генерируем текстовый запрос
+    const queryText = generateSurveyQuery(surveyData);
+    
+    showLoading(true);
+    try {
+        // Отправляем в векторный поиск
+        const data = await apiRequest(`/search?q=${encodeURIComponent(queryText)}`);
+        
+        // Показываем результаты
+        displayResults(data.organizations);
+        hideError();
+        
+        closeSurvey();
+    } catch (error) {
+        showError('Не удалось найти подходящие организации. Попробуйте изменить запрос.');
+    } finally {
+        showLoading(false);
+    }
+}
 
         function closeSurvey() {
             document.getElementById('surveyModal').classList.add('hidden');
@@ -1232,6 +1241,104 @@
             document.getElementById('searchSuggestions').style.display = 'none';
             performSearch();
         }
+
+        function generateSurveyQuery(surveyData) {
+    const { step1, step2, step3, step4, step5, finalCategory } = surveyData;
+    let queryParts = [];
+
+    // Возраст
+    if (step1 === 'child') queryParts.push("помощь ребенку");
+    else queryParts.push("помощь взрослому");
+
+    // Цель
+    switch (step2) {
+        case 'get_help':
+            queryParts.push("нужна помощь");
+            break;
+        case 'help_others':
+            queryParts.push("хочу помочь другим");
+            break;
+        case 'get_info':
+            queryParts.push("ищу информацию");
+            break;
+        case 'other':
+            queryParts.push("другое");
+            break;
+    }
+
+    // Кому помощь
+    if (step3 === 'me') queryParts.push("для себя");
+    else if (step3 === 'my_child') queryParts.push("для моего ребенка");
+    else if (step3 === 'family') queryParts.push("для семьи");
+
+    // Тип помощи
+    if (step4) {
+        switch (step4) {
+            case 'legal':
+                queryParts.push("юридическая поддержка");
+                break;
+            case 'psychology':
+                queryParts.push("психологическая помощь");
+                break;
+            case 'specialists':
+                queryParts.push("консультации специалистов");
+                break;
+            case 'benefits':
+                queryParts.push("материальная помощь, льготы, выплаты");
+                break;
+        }
+    }
+
+    // Уточнение
+    if (step5) {
+        switch (finalCategory) {
+            case 'social_support':
+                queryParts.push("меры социальной поддержки");
+                break;
+            case 'custody':
+                queryParts.push("опека, усыновление, попечительство");
+                break;
+            case 'divorce':
+                queryParts.push("помощь при разводе, раздел имущества");
+                break;
+            case 'personal_issues':
+                queryParts.push("личные проблемы, кризис, стресс");
+                break;
+            case 'family_relations':
+                queryParts.push("проблемы в отношениях, семейная терапия");
+                break;
+            case 'child_psychology':
+                queryParts.push("психологическая помощь ребенку");
+                break;
+            case 'child_development':
+                queryParts.push("развитие ребенка, образование, курсы");
+                break;
+            case 'volunteering':
+                queryParts.push("волонтерство, участие в проектах");
+                break;
+            case 'charity_shop':
+                queryParts.push("лавка добра, помощь вещами");
+                break;
+            case 'help_military':
+                queryParts.push("помощь военнослужащим, СВО");
+                break;
+            case 'projects_events':
+                queryParts.push("проекты, мероприятия, события");
+                break;
+            case 'vacancies':
+                queryParts.push("вакансии, трудоустройство");
+                break;
+            case 'cooperation':
+                queryParts.push("сотрудничество, партнерство");
+                break;
+            case 'benefits':
+                queryParts.push("социальные льготы, выплаты, пособия");
+                break;
+        }
+    }
+
+    return queryParts.join(", ") || "поиск помощи";
+}
 
         // Яндекс.Карта
         let currentMap = null;
