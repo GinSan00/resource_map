@@ -20,6 +20,13 @@
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+        
+        body.org-page-active {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
         }
         
         .touch-device .org-card,
@@ -353,6 +360,8 @@
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
         }
 
         .org-page.active {
@@ -590,6 +599,13 @@
             }
             
             .org-page {
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                transform: translateZ(0);
+                -webkit-transform: translateZ(0);
+            }
+            
+            .org-page-content {
                 -webkit-overflow-scrolling: touch;
                 overscroll-behavior: contain;
             }
@@ -925,6 +941,13 @@
                     e.stopPropagation();
                 }
             }, { passive: true });
+            
+            // Исправление скролла для страницы организации
+            document.addEventListener('scroll', function(e) {
+                if (document.getElementById('orgPage').classList.contains('active')) {
+                    e.stopPropagation();
+                }
+            }, { passive: true });
         }
 
         // API функции
@@ -1055,6 +1078,7 @@
                 document.querySelector('.map-container').innerHTML = '<div id="yandexMap" style="width:100%;height:300px;"></div>';
                 showYandexMap(org.address);
                 document.getElementById('orgPage').classList.add('active');
+                document.body.classList.add('org-page-active');
             } catch (error) {
                 // Ошибка уже показана в getOrganizationDetails
             }
@@ -1062,6 +1086,7 @@
 
         function closeOrgPage() {
             document.getElementById('orgPage').classList.remove('active');
+            document.body.classList.remove('org-page-active');
         }
 
         // Поиск
