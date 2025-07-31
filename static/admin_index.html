@@ -1237,7 +1237,9 @@ function handleSearch() {
             
             try {
                 // Получаем данные организации
-                const response = await fetch(`${API_BASE_URL}/organizations/${id}`);
+                const response = await fetch(`${API_BASE_URL}/admin/organizations/${id}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     const org = data.organization;
