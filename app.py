@@ -686,69 +686,73 @@ def create_category():
 @app.route('/api/admin/organizations', methods=['GET'])
 @require_auth
 def get_admin_organizations():
+    """Получение всех организаций для администратора"""
     try:
-        page = int(request.args.get('page', 1))
+        page = max(int(request.args.get('page', 1)), 1)
         limit = min(int(request.args.get('limit', 20)), 100)
+        offset = (page - 1) * limit
         search = request.args.get('search', '').strip()
         category_id = request.args.get('category_id', '').strip()
         status = request.args.get('status', 'all')  # all, active, inactive
-        
-        offset = (page - 1) * limit
-        
+
+        # Базовые запросы
+        count_query = """
+            SELECT COUNT(*) 
+            FROM organizations o
+            LEFT JOIN categories c ON o.category_id = c.id
+            WHERE 1=1
+        """
+        base_query = """
+            SELECT o.id, o.name, c.name as category, c.id as category_id, o.description, 
+                   o.address, o.phone, o.email, o.website, o.services, o.tags, 
+                   o.is_active, o.created_at, o.updated_at
+            FROM organizations o
+            LEFT JOIN categories c ON o.category_id = c.id
+            WHERE 1=1
+        """
+
+        query_params = []
+
+        # Добавляем условия
+        if search:
+            count_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
+            base_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
+            search_param = f'%{search}%'
+            query_params.extend([search_param, search_param, search_param])
+
+        if category_id and category_id.isdigit():
+            count_query += " AND o.category_id = %s"
+            base_query += " AND o.category_id = %s"
+            query_params.append(int(category_id))
+
+        if status == 'active':
+            count_query += " AND o.is_active = TRUE"
+            base_query += " AND o.is_active = TRUE"
+        elif status == 'inactive':
+            count_query += " AND o.is_active = FALSE"
+            base_query += " AND o.is_active = FALSE"
+
+        # Добавляем сортировку и пагинацию
+        base_query += " ORDER BY o.created_at DESC LIMIT %s OFFSET %s"
+        query_params.extend([limit, offset])
+
         conn = db_manager.get_connection()
-        
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Строим WHERE условие
-            where_conditions = []
-            params = []
-            
-            if search:
-                where_conditions.append("""
-                    (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)
-                """)
-                search_param = f'%{search}%'
-                params.extend([search_param, search_param, search_param])
-            
-            if category_id and category_id.isdigit():
-                where_conditions.append("o.category_id = %s")
-                params.append(int(category_id))
-            
-            if status == 'active':
-                where_conditions.append("o.is_active = TRUE")
-            elif status == 'inactive':
-                where_conditions.append("o.is_active = FALSE")
-            
-            where_clause = ""
-            if where_conditions:
-                where_clause = "WHERE " + " AND ".join(where_conditions)
-            
-            cursor.execute(f"""
-                SELECT COUNT(*) 
-                FROM organizations o
-                LEFT JOIN categories c ON o.category_id = c.id
-                {where_clause}
-            """, params)
+            # Получаем общее количество
+            cursor.execute(count_query, query_params)
             total = cursor.fetchone()[0]
-            
-            cursor.execute(f"""
-                SELECT o.id, o.name, c.name as category, c.id as category_id, o.description, 
-                       o.address, o.phone, o.email, o.website, o.services, o.tags, 
-                       o.is_active, o.created_at, o.updated_at
-                FROM organizations o
-                LEFT JOIN categories c ON o.category_id = c.id
-                {where_clause}
-                ORDER BY o.created_at DESC
-                LIMIT %s OFFSET %s
-            """, params + [limit, offset])
-            
+
+            # Получаем организации
+            cursor.execute(base_query, query_params)
             organizations = [dict(row) for row in cursor.fetchall()]
-            
+
+            # Преобразуем даты
             for org in organizations:
                 if org['created_at']:
                     org['created_at'] = org['created_at'].isoformat()
                 if org['updated_at']:
                     org['updated_at'] = org['updated_at'].isoformat()
-        
+
         return jsonify({
             'organizations': organizations,
             'total': total,
@@ -756,7 +760,7 @@ def get_admin_organizations():
             'limit': limit,
             'pages': (total + limit - 1) // limit
         })
-        
+
     except Exception as e:
         logger.error(f"Ошибка получения организаций: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
