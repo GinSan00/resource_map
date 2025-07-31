@@ -16,7 +16,7 @@ import re
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-embedding_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+embedding_model = SentenceTransformer('ai-forever/sbert_large_mt_nlu_ru')
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -429,7 +429,7 @@ def create_test_organizations():
 
 def generate_embedding(text: str) -> list:
     if not text or not text.strip():
-        return [0.0] * 384  # размер вектора для MiniLM
+        return [0.0] * 1024  # размер вектора для MiniLM
     cleaned_text = ' '.join(text.strip().split())  # нормализуем пробелы
     embedding = embedding_model.encode(cleaned_text)
     return embedding.tolist()
@@ -477,7 +477,7 @@ def create_tables():
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                embedding vector(384)  -- Для векторного поиска
+                embedding vector(1024)  -- Для векторного поиска
             );
         """)
         
