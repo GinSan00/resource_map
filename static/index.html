@@ -405,6 +405,16 @@
             justify-content: center;
             color: #6c757d;
             font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #yandexMap {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .loading {
@@ -482,6 +492,25 @@
             .org-header-container {
                 padding-left: 1rem;
                 padding-right: 1rem;
+            }
+            
+            .map-container {
+                height: 250px;
+            }
+            
+            .org-page {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .map-container {
+                height: 200px;
+            }
+            
+            .modal-content {
+                padding: 1.5rem;
+                margin: 0.5rem;
             }
         }
     </style>
@@ -636,6 +665,11 @@
                 if (e.key === 'Enter') {
                     performSearch();
                 }
+            });
+            
+            // Предзагрузка API Яндекс.Карт
+            initYandexMaps().catch(error => {
+                console.warn('Предзагрузка API не удалась:', error);
             });
         };
 
@@ -905,31 +939,76 @@
 
         // Яндекс.Карта
         let currentMap = null;
+        let mapApiLoaded = false;
+        
+        function initYandexMaps() {
+            if (typeof ymaps !== 'undefined') {
+                mapApiLoaded = true;
+                return Promise.resolve();
+            }
+            
+            return new Promise((resolve, reject) => {
+                const checkApi = () => {
+                    if (typeof ymaps !== 'undefined') {
+                        mapApiLoaded = true;
+                        resolve();
+                    } else {
+                        setTimeout(checkApi, 100);
+                    }
+                };
+                checkApi();
+                
+                setTimeout(() => {
+                    if (!mapApiLoaded) {
+                        reject(new Error('API Яндекс.Карт не загрузился'));
+                    }
+                }, 10000);
+            });
+        }
+        
         function showYandexMap(address) {
+            const mapContainer = document.getElementById('yandexMap');
+            
             if (currentMap) {
                 currentMap.destroy();
                 currentMap = null;
             }
             
-            setTimeout(function() {
-                currentMap = new ymaps.Map('yandexMap', {
-                    center: [57.153033, 65.534328],
-                    zoom: 12,
-                    controls: ['zoomControl']
-                });
-                
-                ymaps.geocode(address + ', Тюмень').then(function (res) {
-                    let firstGeoObject = res.geoObjects.get(0);
-                    if (firstGeoObject) {
-                        let coords = firstGeoObject.geometry.getCoordinates();
-                        currentMap.setCenter(coords, 16);
-                        let placemark = new ymaps.Placemark(coords, {
-                            balloonContent: address
-                        }, { preset: 'islands#redDotIcon' });
-                        currentMap.geoObjects.add(placemark);
-                    }
-                });
-            }, 50);
+            mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6c757d;">Загрузка карты...</div>';
+            
+            initYandexMaps().then(() => {
+                try {
+                    currentMap = new ymaps.Map('yandexMap', {
+                        center: [57.153033, 65.534328],
+                        zoom: 12,
+                        controls: ['zoomControl', 'fullscreenControl'],
+                        behaviors: ['drag', 'dblClickZoom', 'multiTouch']
+                    });
+                    
+                    ymaps.geocode(address + ', Тюмень').then(function (res) {
+                        let firstGeoObject = res.geoObjects.get(0);
+                        if (firstGeoObject) {
+                            let coords = firstGeoObject.geometry.getCoordinates();
+                            currentMap.setCenter(coords, 16);
+                            let placemark = new ymaps.Placemark(coords, {
+                                balloonContent: address
+                            }, { preset: 'islands#redDotIcon' });
+                            currentMap.geoObjects.add(placemark);
+                        } else {
+                            mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6c757d;">Адрес не найден на карте</div>';
+                        }
+                    }).catch(function(error) {
+                        console.error('Ошибка геокодирования:', error);
+                        mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6c757d;">Ошибка загрузки карты</div>';
+                    });
+                } catch (error) {
+                    console.error('Ошибка инициализации карты:', error);
+                    mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6c757d;">Ошибка загрузки карты</div>';
+                }
+            }).catch((error) => {
+                console.error('Ошибка загрузки API:', error);
+                mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6c757d;">Карта недоступна</div>';
+            });
         }
     </script>
 </body>
