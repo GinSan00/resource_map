@@ -1106,6 +1106,13 @@
                 status: currentFilters.status
             });
             
+            Object.keys(currentFilters).forEach(key => {
+    const value = currentFilters[key];
+    if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+    }
+});
+
             try {
                 const response = await fetch(`${API_BASE_URL}/admin/organizations?${params}`, {
                     headers: {
@@ -1168,17 +1175,43 @@
         }
 
         // Поиск и фильтрация
-        function handleSearch() {
-            currentFilters.search = document.getElementById('searchInput').value;
-            loadOrganizations(1);
-        }
+function handleSearch() {
+    const value = document.getElementById('searchInput').value.trim();
+    if (value) {
+        currentFilters.search = value;
+    } else {
+        delete currentFilters.search;
+    }
+    loadOrganizations(1);
+}
 
         function handleFilter() {
-            const categoryFilter = document.getElementById('categoryFilter');
-            currentFilters.category_id = categoryFilter.value;  // БЫЛО: category
-            currentFilters.status = document.getElementById('statusFilter').value;
-            loadOrganizations(1);
-        }
+    const categoryFilter = document.getElementById('categoryFilter');
+    const statusFilter = document.getElementById('statusFilter');
+
+    // Только если значение не пустое и не undefined
+    if (categoryFilter.value) {
+        currentFilters.category_id = categoryFilter.value;
+    } else {
+        delete currentFilters.category_id;
+    }
+
+    if (statusFilter.value && statusFilter.value !== 'all') {
+        currentFilters.status = statusFilter.value;
+    } else {
+        delete currentFilters.status;
+    }
+
+    // Поиск — только если есть текст
+    const searchInput = document.getElementById('searchInput').value.trim();
+    if (searchInput) {
+        currentFilters.search = searchInput;
+    } else {
+        delete currentFilters.search;
+    }
+
+    loadOrganizations(1);
+}
 
         // Модальные окна
         function openAddOrganizationModal() {
