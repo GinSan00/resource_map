@@ -1,3 +1,5 @@
+from sentence_transformers import SentenceTransformer
+import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import psycopg2
@@ -13,6 +15,8 @@ import re
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+embedding_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -57,8 +61,24 @@ class DatabaseManager:
 # Инициализация менеджера БД
 db_manager = DatabaseManager(DB_CONFIG)
 
+def generate_embedding(text: str) -> list:
+    if not text or not text.strip():
+        return [0.0] * 384  # размер вектора для MiniLM
+    cleaned_text = ' '.join(text.strip().split())  # нормализуем пробелы
+    embedding = embedding_model.encode(cleaned_text)
+    return embedding.tolist()
+
+def generate_embedding_text(name: str, description: str, services: str, address: str, tags: list) -> str:
+    parts = [
+        name or '',
+        description or '',
+        services or '',
+        address or '',
+        ' '.join(tags) if tags else ''
+    ]
+    return ' '.join(part.strip() for part in parts if part.strip())
+
 def create_tables():
-    """Создание всех необходимых таблиц"""
     conn = db_manager.get_connection()
     with conn.cursor() as cursor:
         # Создание таблицы категорий
@@ -90,16 +110,14 @@ def create_tables():
                 tags TEXT[],
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                embedding vector(384)  -- Для векторного поиска
             );
         """)
         
         # Создание индексов для поиска организаций
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations USING gin(to_tsvector('russian', name));
-            CREATE INDEX IF NOT EXISTS idx_organizations_description ON organizations USING gin(to_tsvector('russian', description));
+         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_organizations_category ON organizations(category_id);
-            CREATE INDEX IF NOT EXISTS idx_organizations_tags ON organizations USING gin(tags);
         """)
         
         # Создание таблицы администраторов
@@ -336,52 +354,45 @@ def get_organizations():
 
 @app.route('/api/search', methods=['GET'])
 def search_organizations():
-    """Поиск организаций по запросу"""
+    """Семантический поиск организаций по смыслу (векторный поиск)"""
     try:
         query = request.args.get('q', '').strip()
         limit = min(int(request.args.get('limit', 20)), 50)
-        
         if not query:
             return jsonify({'organizations': [], 'total': 0, 'query': query})
-        
+
+        # Генерируем эмбеддинг для запроса
+        query_embedding = generate_embedding(query)
+
         conn = db_manager.get_connection()
-        
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Полнотекстовый поиск по названию, описанию и услугам
             cursor.execute("""
-                SELECT o.id, o.name, c.name as category, o.description, o.address, 
-                       o.phone, o.email, o.website, o.services,
-                       ts_rank(to_tsvector('russian', o.name || ' ' || o.description || ' ' || COALESCE(o.services, '')), plainto_tsquery('russian', %s)) as rank
+                SELECT 
+                    o.id, o.name, c.name as category, o.description, o.address, 
+                    o.phone, o.email, o.website, o.services, o.tags,
+                    1 - (o.embedding <=> %s::vector) as relevance
                 FROM organizations o
                 LEFT JOIN categories c ON o.category_id = c.id
                 WHERE o.is_active = TRUE 
-                AND (
-                    to_tsvector('russian', o.name || ' ' || o.description || ' ' || COALESCE(o.services, '')) @@ plainto_tsquery('russian', %s)
-                    OR o.name ILIKE %s
-                    OR o.description ILIKE %s
-                    OR o.services ILIKE %s
-                    OR c.name ILIKE %s
-                )
-                ORDER BY rank DESC, o.name
+                  AND o.embedding IS NOT NULL
+                ORDER BY o.embedding <=> %s::vector
                 LIMIT %s
-            """, (query, query, f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%', limit))
-            
+            """, (query_embedding, query_embedding, limit))
+
             results = cursor.fetchall()
             organizations = []
-            
             for row in results:
                 org = dict(row)
-                org.pop('rank', None)  # Убираем служебное поле rank
+                org.pop('relevance', None)  # можно оставить, если хочешь видеть релевантность
                 organizations.append(org)
-        
+
         return jsonify({
             'organizations': organizations,
             'total': len(organizations),
             'query': query
         })
-        
     except Exception as e:
-        logger.error(f"Ошибка поиска: {e}")
+        logger.error(f"Ошибка семантического поиска: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 @app.route('/api/organizations/<int:org_id>', methods=['GET'])
@@ -675,7 +686,6 @@ def create_category():
 @app.route('/api/admin/organizations', methods=['GET'])
 @require_auth
 def get_admin_organizations():
-    """Получение всех организаций для администратора"""
     try:
         page = int(request.args.get('page', 1))
         limit = min(int(request.args.get('limit', 20)), 100)
@@ -712,7 +722,6 @@ def get_admin_organizations():
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
             
-            # Получаем общее количество
             cursor.execute(f"""
                 SELECT COUNT(*) 
                 FROM organizations o
@@ -721,7 +730,6 @@ def get_admin_organizations():
             """, params)
             total = cursor.fetchone()[0]
             
-            # Получаем организации
             cursor.execute(f"""
                 SELECT o.id, o.name, c.name as category, c.id as category_id, o.description, 
                        o.address, o.phone, o.email, o.website, o.services, o.tags, 
@@ -735,7 +743,6 @@ def get_admin_organizations():
             
             organizations = [dict(row) for row in cursor.fetchall()]
             
-            # Преобразуем даты в строки
             for org in organizations:
                 if org['created_at']:
                     org['created_at'] = org['created_at'].isoformat()
@@ -757,13 +764,12 @@ def get_admin_organizations():
 @app.route('/api/admin/organizations', methods=['POST'])
 @require_auth
 def create_organization():
-    """Создание новой организации"""
+    """Создание новой организации (с векторным эмбеддингом)"""
     try:
         data = request.get_json()
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
-        
-        # Валидация обязательных полей
+
         required_fields = ['name', 'category_id', 'description', 'address']
         for field in required_fields:
             if field == 'category_id':
@@ -771,25 +777,34 @@ def create_organization():
                     return jsonify({'error': 'Категория обязательна для выбора'}), 400
             else:
                 if not data.get(field, '').strip():
-                    return jsonify({'error': f'Поле "{field}" обязательно для заполнения'}), 400
-        
-        # Валидация email
+                    return jsonify({'error': f'Поле "{field}" обязательно'}), 400
+
         email = data.get('email', '').strip()
         if email and not validate_email(email):
             return jsonify({'error': 'Некорректный email адрес'}), 400
-        
+
         conn = db_manager.get_connection()
-        
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Проверяем существование категории
+            # Проверка категории
             cursor.execute("SELECT id FROM categories WHERE id = %s", (data['category_id'],))
             if not cursor.fetchone():
-                return jsonify({'error': 'Указанная категория не существует'}), 400
-            
+                return jsonify({'error': 'Категория не существует'}), 400
+
+            # Формируем текст и генерируем эмбеддинг
+            text_for_embedding = generate_embedding_text(
+                name=data['name'],
+                description=data['description'],
+                services=data.get('services', ''),
+                address=data.get('address', ''),
+                tags=data.get('tags', [])
+            )
+            embedding = generate_embedding(text_for_embedding)
+
+            # Вставка с embedding сразу
             cursor.execute("""
                 INSERT INTO organizations 
-                (name, category_id, description, address, phone, email, website, services, tags, is_active) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (name, category_id, description, address, phone, email, website, services, tags, is_active, embedding) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, name, created_at
             """, (
                 data['name'].strip(),
@@ -801,18 +816,19 @@ def create_organization():
                 data.get('website', '').strip() or None,
                 data.get('services', '').strip() or None,
                 data.get('tags', []),
-                data.get('is_active', True)
+                data.get('is_active', True),
+                embedding
             ))
-            
+
             result = cursor.fetchone()
             organization = dict(result)
             organization['created_at'] = organization['created_at'].isoformat()
-            
+
             return jsonify({
                 'message': 'Организация успешно создана',
                 'organization': organization
             }), 201
-        
+
     except Exception as e:
         logger.error(f"Ошибка создания организации: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
@@ -820,66 +836,73 @@ def create_organization():
 @app.route('/api/admin/organizations/<int:org_id>', methods=['PUT'])
 @require_auth
 def update_organization(org_id: int):
-    """Обновление организации"""
+    """Обновление организации с обновлением эмбеддинга"""
     try:
         data = request.get_json()
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
-        
-        # Валидация категории
-        if data.get('category_id') and not str(data.get('category_id')).isdigit():
-            return jsonify({'error': 'Некорректный ID категории'}), 400
-        
-        # Валидация email
-        email = data.get('email', '').strip()
-        if email and not validate_email(email):
-            return jsonify({'error': 'Некорректный email адрес'}), 400
-        
+
+        # Проверка существования организации
         conn = db_manager.get_connection()
-        
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Проверяем существование организации
-            cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
-            if not cursor.fetchone():
+            cursor.execute("SELECT * FROM organizations WHERE id = %s", (org_id,))
+            org = cursor.fetchone()
+            if not org:
                 return jsonify({'error': 'Организация не найдена'}), 404
-            
-            # Проверяем существование категории
+
+            # Валидация email
+            email = data.get('email', '').strip()
+            if email and not validate_email(email):
+                return jsonify({'error': 'Некорректный email адрес'}), 400
+
+            # Проверка категории, если указана
             if data.get('category_id'):
                 cursor.execute("SELECT id FROM categories WHERE id = %s", (data['category_id'],))
                 if not cursor.fetchone():
-                    return jsonify({'error': 'Указанная категория не существует'}), 400
-            
-            # Обновляем организацию
+                    return jsonify({'error': 'Категория не существует'}), 400
+
+            # Формируем текст для эмбеддинга (берём текущие значения, если не переданы)
+            name = data.get('name', org['name'])
+            description = data.get('description', org['description'])
+            services = data.get('services', org['services'] or '')
+            address = data.get('address', org['address'])
+            tags = data.get('tags', org['tags'] or [])
+
+            text_for_embedding = generate_embedding_text(name, description, services, address, tags)
+            embedding = generate_embedding(text_for_embedding)
+
+            # Обновляем всё, включая embedding
             cursor.execute("""
                 UPDATE organizations 
                 SET name = %s, category_id = %s, description = %s, address = %s, 
                     phone = %s, email = %s, website = %s, services = %s, 
-                    tags = %s, is_active = %s, updated_at = NOW()
+                    tags = %s, is_active = %s, updated_at = NOW(), embedding = %s
                 WHERE id = %s
                 RETURNING id, name, updated_at
             """, (
-                data.get('name', '').strip(),
-                data.get('category_id'),
-                data.get('description', '').strip(),
-                data.get('address', '').strip(),
-                data.get('phone', '').strip() or None,
+                name.strip(),
+                data.get('category_id', org['category_id']),
+                description.strip(),
+                address.strip(),
+                data.get('phone', org['phone']) or None,
                 email or None,
-                data.get('website', '').strip() or None,
-                data.get('services', '').strip() or None,
-                data.get('tags', []),
-                data.get('is_active', True),
+                data.get('website', org['website']) or None,
+                services or None,
+                tags,
+                data.get('is_active', org['is_active']),
+                embedding,
                 org_id
             ))
-            
+
             result = cursor.fetchone()
             organization = dict(result)
             organization['updated_at'] = organization['updated_at'].isoformat()
-            
+
             return jsonify({
                 'message': 'Организация успешно обновлена',
                 'organization': organization
             })
-        
+
     except Exception as e:
         logger.error(f"Ошибка обновления организации {org_id}: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
@@ -890,18 +913,14 @@ def delete_organization(org_id: int):
     """Удаление организации"""
     try:
         conn = db_manager.get_connection()
-        
         with conn.cursor() as cursor:
-            # Проверяем существование организации
             cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
             if not cursor.fetchone():
                 return jsonify({'error': 'Организация не найдена'}), 404
-            
-            # Удаляем организацию
+
             cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
-            
             return jsonify({'message': 'Организация успешно удалена'})
-        
+
     except Exception as e:
         logger.error(f"Ошибка удаления организации {org_id}: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
@@ -996,6 +1015,26 @@ def get_admin_stats():
     except Exception as e:
         logger.error(f"Ошибка получения статистики: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+def populate_embeddings():
+    conn = db_manager.get_connection()
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        cursor.execute("""
+            SELECT id, name, description, services, address, tags 
+            FROM organizations 
+            WHERE is_active = TRUE
+        """)
+        for org in cursor.fetchall():
+            text = generate_embedding_text(
+                name=org['name'],
+                description=org['description'],
+                services=org['services'] or '',
+                address=org['address'],
+                tags=org['tags'] or []
+            )
+            embedding = generate_embedding(text)
+            cursor.execute("UPDATE organizations SET embedding = %s WHERE id = %s", (embedding, org['id']))
+        logger.info("✅ Все эмбеддинги обновлены")
 
 # ===============================
 # ОБРАБОТЧИКИ ОШИБОК
