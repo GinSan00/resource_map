@@ -1123,7 +1123,7 @@ def get_admin_organizations():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             # Общее количество
             cursor.execute(count_query, query_params[:-2])  # Без limit/offset
-            total = cursor.fetchone()[0]
+            total = cursor.fetchone()
 
             # Получение данных
             cursor.execute(base_query, query_params)
