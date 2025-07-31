@@ -926,7 +926,7 @@
                 if (category && category.name && category.name.trim()) {
                     // Для фильтра (используем название для фильтрации)
                     const filterOption = document.createElement('option');
-                    filterOption.value = category.name;
+                    filterOption.value = category.id;  
                     filterOption.textContent = category.name;
                     categoryFilter.appendChild(filterOption);
                     
@@ -1101,7 +1101,9 @@
             const params = new URLSearchParams({
                 page: page,
                 limit: 20,
-                ...currentFilters
+                search: currentFilters.search,
+                category_id: currentFilters.category_id,  
+                status: currentFilters.status
             });
             
             try {
@@ -1172,7 +1174,8 @@
         }
 
         function handleFilter() {
-            currentFilters.category = document.getElementById('categoryFilter').value;
+            const categoryFilter = document.getElementById('categoryFilter');
+            currentFilters.category_id = categoryFilter.value;  // БЫЛО: category
             currentFilters.status = document.getElementById('statusFilter').value;
             loadOrganizations(1);
         }

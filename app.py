@@ -1375,6 +1375,35 @@ def get_admin_stats():
         logger.error(f"Ошибка получения статистики: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
+@app.route('/api/admin/organizations/<int:org_id>', methods=['GET'])
+@require_auth
+def get_admin_organization(org_id: int):
+    """Получение детальной информации об организации для администратора"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""
+                SELECT o.id, o.name, o.category_id, c.name as category, o.description, o.address, 
+                       o.phone, o.email, o.website, o.services, o.tags, o.is_active,
+                       o.created_at, o.updated_at
+                FROM organizations o
+                LEFT JOIN categories c ON o.category_id = c.id
+                WHERE o.id = %s
+            """, (org_id,))
+            result = cursor.fetchone()
+            if not result:
+                return jsonify({'error': 'Организация не найдена'}), 404
+            organization = dict(result)
+            # Преобразуем даты
+            if organization['created_at']:
+                organization['created_at'] = organization['created_at'].isoformat()
+            if organization['updated_at']:
+                organization['updated_at'] = organization['updated_at'].isoformat()
+            return jsonify({'organization': organization})
+    except Exception as e:
+        logger.error(f"Ошибка получения организации {org_id}: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
 def populate_embeddings():
     conn = db_manager.get_connection()
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
