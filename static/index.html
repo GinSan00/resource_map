@@ -24,9 +24,12 @@
         }
         
         body.org-page-active {
-            overflow: hidden;
             position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
+            overflow: hidden; /* блокируем скролл body */
+            height: 100vh;
         }
         
         .touch-device .org-card,
@@ -409,6 +412,9 @@
             padding-right: 2rem;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
+            max-height: calc(100vh - 80px); /* учитываем header */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* важно для iOS */
         }
 
         .org-details {
@@ -1230,31 +1236,48 @@
         // Яндекс.Карта
         let currentMap = null;
         function showYandexMap(address) {
-            if (currentMap) {
-                currentMap.destroy();
-                currentMap = null;
+    if (currentMap) {
+        currentMap.destroy();
+        currentMap = null;
+    }
+
+    // Убедимся, что API загружено
+    if (!window.ymaps) {
+        setTimeout(() => showYandexMap(address), 100); // Повторить, если API ещё не готово
+        return;
+    }
+
+    // Ждём, пока элемент станет видимым
+    const mapElement = document.getElementById('yandexMap');
+    if (!mapElement || getComputedStyle(mapElement).display === 'none') {
+        setTimeout(() => showYandexMap(address), 50);
+        return;
+    }
+
+    ymaps.ready(() => {
+        currentMap = new ymaps.Map('yandexMap', {
+            center: [57.153033, 65.534328],
+            zoom: 12,
+            controls: ['zoomControl']
+        });
+
+        ymaps.geocode(address + ', Тюмень').then(function (res) {
+            const firstGeoObject = res.geoObjects.get(0);
+            if (firstGeoObject) {
+                const coords = firstGeoObject.geometry.getCoordinates();
+                currentMap.setCenter(coords, 16);
+                const placemark = new ymaps.Placemark(coords, {
+                    balloonContent: address
+                }, {
+                    preset: 'islands#redDotIcon'
+                });
+                currentMap.geoObjects.add(placemark);
             }
-            
-            setTimeout(function() {
-                currentMap = new ymaps.Map('yandexMap', {
-                    center: [57.153033, 65.534328],
-                    zoom: 12,
-                    controls: ['zoomControl']
-                });
-                
-                ymaps.geocode(address + ', Тюмень').then(function (res) {
-                    let firstGeoObject = res.geoObjects.get(0);
-                    if (firstGeoObject) {
-                        let coords = firstGeoObject.geometry.getCoordinates();
-                        currentMap.setCenter(coords, 16);
-                        let placemark = new ymaps.Placemark(coords, {
-                            balloonContent: address
-                        }, { preset: 'islands#redDotIcon' });
-                        currentMap.geoObjects.add(placemark);
-                    }
-                });
-            }, 50);
-        }
+        }).catch(() => {
+            console.warn('Не удалось геокодировать адрес:', address);
+        });
+    });
+}
     </script>
 </body>
 </html>
