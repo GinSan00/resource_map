@@ -1046,17 +1046,24 @@ def get_admin_organizations():
         page = max(int(request.args.get('page', 1)), 1)
         limit = min(int(request.args.get('limit', 20)), 100)
         offset = (page - 1) * limit
+        
+        # Исправление: замена 'undefined' на пустые значения
         search = request.args.get('search', '').strip()
         if search.lower() == 'undefined':
             search = ''
+
         category_id = request.args.get('category_id', '').strip()
+        if category_id.lower() == 'undefined':
+            category_id = ''
 
         try:
             category_id = int(category_id) if category_id and category_id.isdigit() else None
         except (TypeError, ValueError):
             category_id = None
 
-        status = request.args.get('status', 'all')  # all, active, inactive
+        status = request.args.get('status', 'all')
+        if status.lower() == 'undefined':
+            status = 'all'
 
         # Базовые запросы
         count_query = """
