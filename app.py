@@ -1081,7 +1081,7 @@ def get_admin_organizations():
 
         # === Формирование запроса ===
         count_query = """
-            SELECT COUNT(*) 
+            SELECT COUNT(*) AS count
             FROM organizations o
             LEFT JOIN categories c ON o.category_id = c.id
             WHERE 1=1
@@ -1099,21 +1099,16 @@ def get_admin_organizations():
         if search:
             search_param = f'%{search}%'
             count_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
-            base_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
             query_params.extend([search_param, search_param, search_param])
 
         if category_id is not None:
             count_query += " AND o.category_id = %s"
-            base_query += " AND o.category_id = %s"
             query_params.append(category_id)
 
         if status == 'active':
             count_query += " AND o.is_active = TRUE"
-            base_query += " AND o.is_active = TRUE"
         elif status == 'inactive':
             count_query += " AND o.is_active = FALSE"
-            base_query += " AND o.is_active = FALSE"
-        # 'all' не требует условия
 
         # === Сортировка и пагинация ===
         base_query += " ORDER BY o.created_at DESC LIMIT %s OFFSET %s"
@@ -1122,8 +1117,9 @@ def get_admin_organizations():
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             # Общее количество
-            cursor.execute(count_query, query_params[:-2])  # Без limit/offset
-            total = cursor.fetchone()
+            cursor.execute(count_query, query_params)
+            result = cursor.fetchone()
+            total = result['count'] if result else 0
 
             # Получение данных
             cursor.execute(base_query, query_params)
