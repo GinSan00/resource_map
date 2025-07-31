@@ -574,8 +574,8 @@ def generate_jwt_token(admin_id: int, username: str) -> str:
     payload = {
         'admin_id': admin_id,
         'username': username,
-        'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
-        'iat': datetime.utcnow()
+        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.now(timezone.utc)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
 
@@ -903,7 +903,7 @@ def admin_login():
             
             # Сохраняем сессию
             token_hash = bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            expires_at = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS)
             
             cursor.execute("""
                 INSERT INTO admin_sessions (admin_id, token_hash, expires_at, ip_address, user_agent)
@@ -1047,7 +1047,15 @@ def get_admin_organizations():
         limit = min(int(request.args.get('limit', 20)), 100)
         offset = (page - 1) * limit
         search = request.args.get('search', '').strip()
+        if search.lower() == 'undefined':
+            search = ''
         category_id = request.args.get('category_id', '').strip()
+
+        try:
+            category_id = int(category_id) if category_id and category_id.isdigit() else None
+        except (TypeError, ValueError):
+            category_id = None
+
         status = request.args.get('status', 'all')  # all, active, inactive
 
         # Базовые запросы
@@ -1068,6 +1076,7 @@ def get_admin_organizations():
 
         query_params = []
 
+
         # Добавляем условия
         if search:
             count_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
@@ -1075,10 +1084,10 @@ def get_admin_organizations():
             search_param = f'%{search}%'
             query_params.extend([search_param, search_param, search_param])
 
-        if category_id and category_id.isdigit():
+        if category_id is not None:
             count_query += " AND o.category_id = %s"
             base_query += " AND o.category_id = %s"
-            query_params.append(int(category_id))
+            query_params.append(category_id)
 
         if status == 'active':
             count_query += " AND o.is_active = TRUE"
