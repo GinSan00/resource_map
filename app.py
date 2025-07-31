@@ -385,7 +385,6 @@ def create_test_organizations():
 
     conn = db_manager.get_connection()
     with conn.cursor() as cursor:
-        # Проверим, есть ли уже организации
         cursor.execute("SELECT COUNT(*) FROM organizations")
         count = cursor.fetchone()[0]
         if count > 0:
@@ -394,10 +393,21 @@ def create_test_organizations():
 
         for org in test_organizations:
             try:
+                # Формируем текст для эмбеддинга
+                text_for_embedding = generate_embedding_text(
+                    name=org["name"],
+                    description=org["description"],
+                    services=org.get("services", ""),
+                    address=org["address"],
+                    tags=org.get("tags", [])
+                )
+                # Генерируем эмбеддинг
+                embedding = generate_embedding(text_for_embedding)
+
                 cursor.execute("""
                     INSERT INTO organizations 
-                    (name, category_id, description, address, phone, email, website, services, tags, is_active)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (name, category_id, description, address, phone, email, website, services, tags, is_active, embedding)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     org["name"],
                     org["category_id"],
@@ -408,13 +418,14 @@ def create_test_organizations():
                     org.get("website"),
                     org.get("services"),
                     org.get("tags", []),
-                    org.get("is_active", True)
+                    org.get("is_active", True),
+                    embedding  # <-- Векторное представление
                 ))
             except Exception as e:
                 logger.error(f"Ошибка при добавлении '{org['name']}': {e}")
                 continue
 
-        logger.info(f"✅ Успешно добавлено {len(test_organizations)} тестовых организаций")
+        logger.info(f"✅ Успешно добавлено {len(test_organizations)} тестовых организаций с векторными эмбеддингами")
 
 def generate_embedding(text: str) -> list:
     if not text or not text.strip():
@@ -1046,26 +1057,29 @@ def get_admin_organizations():
         page = max(int(request.args.get('page', 1)), 1)
         limit = min(int(request.args.get('limit', 20)), 100)
         offset = (page - 1) * limit
-        
-        # Исправление: замена 'undefined' на пустые значения
+
+        # === Исправление: корректная обработка всех параметров ===
         search = request.args.get('search', '').strip()
-        if search.lower() == 'undefined':
-            search = ''
+        if not search or search.lower() == 'undefined':
+            search = None
 
-        category_id = request.args.get('category_id', '').strip()
-        if category_id.lower() == 'undefined':
-            category_id = ''
-
-        try:
-            category_id = int(category_id) if category_id and category_id.isdigit() else None
-        except (TypeError, ValueError):
+        category_id_str = request.args.get('category_id', '').strip()
+        if not category_id_str or category_id_str.lower() == 'undefined':
             category_id = None
+        else:
+            try:
+                category_id = int(category_id_str)
+            except (TypeError, ValueError):
+                logger.warning(f"Некорректный category_id: {category_id_str}")
+                category_id = None
 
-        status = request.args.get('status', 'all')
-        if status.lower() == 'undefined':
-            status = 'all'
+        status = request.args.get('status', '').strip()
+        if not status or status.lower() == 'undefined':
+            status = None
+        elif status not in ['all', 'active', 'inactive']:
+            status = None
 
-        # Базовые запросы
+        # === Формирование запроса ===
         count_query = """
             SELECT COUNT(*) 
             FROM organizations o
@@ -1075,20 +1089,17 @@ def get_admin_organizations():
         base_query = """
             SELECT o.id, o.name, c.name as category, c.id as category_id, o.description, 
                    o.address, o.phone, o.email, o.website, o.services, o.tags, 
-                   o.is_active, o.created_at, o.updated_at
+                   o.is_active, o.created_at, o.updated_at, o.embedding
             FROM organizations o
             LEFT JOIN categories c ON o.category_id = c.id
             WHERE 1=1
         """
-
         query_params = []
 
-
-        # Добавляем условия
         if search:
+            search_param = f'%{search}%'
             count_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
             base_query += " AND (o.name ILIKE %s OR o.description ILIKE %s OR o.services ILIKE %s)"
-            search_param = f'%{search}%'
             query_params.extend([search_param, search_param, search_param])
 
         if category_id is not None:
@@ -1102,27 +1113,33 @@ def get_admin_organizations():
         elif status == 'inactive':
             count_query += " AND o.is_active = FALSE"
             base_query += " AND o.is_active = FALSE"
+        # 'all' не требует условия
 
-        # Добавляем сортировку и пагинацию
+        # === Сортировка и пагинация ===
         base_query += " ORDER BY o.created_at DESC LIMIT %s OFFSET %s"
         query_params.extend([limit, offset])
 
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            # Получаем общее количество
-            cursor.execute(count_query, query_params)
+            # Общее количество
+            cursor.execute(count_query, query_params[:-2])  # Без limit/offset
             total = cursor.fetchone()[0]
 
-            # Получаем организации
+            # Получение данных
             cursor.execute(base_query, query_params)
-            organizations = [dict(row) for row in cursor.fetchall()]
-
-            # Преобразуем даты
-            for org in organizations:
+            organizations = []
+            for row in cursor.fetchall():
+                org = dict(row)
+                # Обработка дат
                 if org['created_at']:
                     org['created_at'] = org['created_at'].isoformat()
                 if org['updated_at']:
                     org['updated_at'] = org['updated_at'].isoformat()
+                # Важно: embedding — это numpy array или list, но JSON не поддержает
+                # Если нужно — преобразуем в list, но лучше убрать из админки, если не используется
+                if 'embedding' in org and org['embedding'] is not None:
+                    org['embedding'] = org['embedding'].tolist() if hasattr(org['embedding'], 'tolist') else list(org['embedding'])
+                organizations.append(org)
 
         return jsonify({
             'organizations': organizations,
@@ -1131,9 +1148,9 @@ def get_admin_organizations():
             'limit': limit,
             'pages': (total + limit - 1) // limit
         })
-
     except Exception as e:
-        logger.error(f"Ошибка получения организаций: {e}")
+        # 🔥 Теперь мы видим, что за ошибка!
+        logger.error(f"Ошибка получения организаций: {type(e).__name__}: {e}", exc_info=True)
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 @app.route('/api/admin/organizations', methods=['POST'])
