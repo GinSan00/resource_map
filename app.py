@@ -116,7 +116,7 @@ def create_tables():
         """)
         
         # Создание индексов для поиска организаций
-         cursor.execute("""
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_organizations_category ON organizations(category_id);
         """)
         
