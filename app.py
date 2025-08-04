@@ -693,7 +693,7 @@ def register_owner():
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
 
-        required_fields = ['full_name', 'email', 'org_name', 'password']
+        required_fields = ['full_name', 'email', 'organization_name', 'password']
         for field in required_fields:
             if not data.get(field, '').strip():
                 return jsonify({'error': f'Поле {field} обязательно'}), 400
@@ -710,7 +710,7 @@ def register_owner():
             password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
             # Проверяем, существует ли организация
-            cursor.execute("SELECT id FROM organizations WHERE name ILIKE %s", (data['org_name'],))
+            cursor.execute("SELECT id FROM organizations WHERE name ILIKE %s", (data['organization_name'],))
             org_result = cursor.fetchone()
 
             request_type = 'claim_org' if org_result else 'new_org'
@@ -720,7 +720,7 @@ def register_owner():
                 'full_name': data['full_name'],
                 'email': data['email'],
                 'phone': data.get('phone', ''),
-                'org_name': data['org_name'],
+                'organization_name': data['organization_name'],
                 'org_id': org_id
             }
 
@@ -953,7 +953,7 @@ def approve_pending_request(request_id: int):
             if req['request_type'] == 'new_org':
                 # Создаем организацию
                 text_for_embedding = generate_embedding_text(
-                    name=data['org_name'],
+                    name=data['organization_name'],
                     description='',
                     services='',
                     address='',
@@ -966,7 +966,7 @@ def approve_pending_request(request_id: int):
                     VALUES (%s, %s, %s, %s, %s)
                     RETURNING id
                 """, (
-                    data['org_name'],
+                    data['organization_name'],
                     '', '', '', embedding
                 ))
                 org_id = cursor.fetchone()['id']
