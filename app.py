@@ -1056,6 +1056,29 @@ def create_tables():
         conn.commit()
         logger.info("Таблицы созданы или уже существуют")
 
+def create_test_categories():
+    """Создание тестовых категорий"""
+    categories = [
+        ("Медицина и здоровье", "Поликлиники, больницы, аптеки, врачи и т.д."),
+        ("Образование", "Школы, курсы, детские сады, колледжи, университеты"),
+        ("Социальная поддержка", "Центры помощи, благотворительность, поддержка семей"),
+        ("Юридические услуги", "Консультации, защита прав, составление документов"),
+        ("Культура и досуг", "Театры, музеи, библиотеки, кружки"),
+        ("Спорт и фитнес", "Фитнес-клубы, спортивные секции, бассейны"),
+        ("Работа и карьера", "Центры занятости, кадровые агентства, обучение профессиям"),
+        ("Финансовые услуги", "Банки, МФО, кредиты, вклады")
+    ]
+    conn = db_manager.get_connection()
+    with conn.cursor() as cursor:
+        for name, description in categories:
+            cursor.execute("""
+                INSERT INTO categories (name, description)
+                VALUES (%s, %s)
+                ON CONFLICT (name) DO NOTHING
+            """, (name, description))
+            print(f"✅ Категория добавлена или уже существует: {name}")
+        conn.commit()
+
 def create_test_organizations():
     """Создание 30 тестовых организаций с генерацией эмбеддингов и заполнением всех полей"""
     test_organizations = [
@@ -1652,6 +1675,7 @@ if __name__ == '__main__':
     try:
         create_tables()
         create_default_admin()
+        create_test_categories()
         create_test_organizations()
         app.run(host='0.0.0.0', port=5000, debug=True)
     except Exception as e:
