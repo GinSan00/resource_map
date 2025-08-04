@@ -1574,11 +1574,6 @@ def create_test_organizations():
                 )
                 embedding = generate_embedding(text_for_embedding)
 
-                # Проверка существования категории
-                cursor.execute("SELECT id FROM categories WHERE id = %s", (org["category_id"],))
-                if not cursor.fetchone():
-                    print(f"❌ Категория {org['category_id']} для '{org['name']}' не существует. Пропускаем.")
-                    continue
 
                 # Вставка организации
                 cursor.execute("""
