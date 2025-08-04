@@ -584,6 +584,7 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
             
+            hideAlert('login-alert');
             
             try {
                 const response = await fetch(`${API_BASE}/owner/login`, {
@@ -615,6 +616,8 @@
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
+            
+            hideAlert('register-alert');
             
             // Проверка паролей
             if (data.password !== data.confirm_password) {
@@ -652,6 +655,8 @@
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
+            
+            hideAlert('org-alert');
             
             try {
                 const response = await fetch(`${API_BASE}/owner/organizations`, {
@@ -837,6 +842,7 @@
             editBtn.classList.add('btn-primary');
             hideAlert('org-alert');
         }
+    }
 
         // Заполнить форму редактирования
         function fillEditForm() {
@@ -908,6 +914,11 @@
         });
 
         // Автоматическое скрытие алертов через 5 секунд
+        function autoHideAlert(alertId, delay = 5000) {
+            setTimeout(() => {
+                hideAlert(alertId);
+            }, delay);
+        }
 
         // Обновленная функция показа алерта с автоскрытием
         function showAlert(alertId, message, type = 'error', autoHide = false) {
@@ -916,6 +927,9 @@
             alertElement.className = `alert alert-${type}`;
             alertElement.classList.remove('d-none');
             
+            if (autoHide) {
+                autoHideAlert(alertId);
+            }
         }
 
         // Валидация email
@@ -971,6 +985,7 @@
                 }
             }
         });
+        
 
         // Обработка refresh токена (если понадобится)
         async function refreshToken() {
@@ -1030,6 +1045,5 @@
                 }
             }
         });
-    }
     </script>
 </body>
