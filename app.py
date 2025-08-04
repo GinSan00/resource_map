@@ -133,6 +133,14 @@ def require_owner_auth(f):
 # API ЭНДПОИНТЫ
 # ===============================
 
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
+
+@app.route('/admin')
+def admin_index():
+    return send_from_directory('static', 'admin_index.html')
+
 @app.route('/api/search', methods=['GET'])
 def semantic_search():
     """Семантический поиск организаций"""
