@@ -777,6 +777,80 @@ def owner_login():
         logger.error(f"Ошибка авторизации владельца: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
+@app.route('/api/owner/register', methods=['POST'])
+def owner_register():
+    """Регистрация нового владельца организации (создание запроса на модерацию)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Данные не предоставлены'}), 400
+
+        full_name = data.get('full_name', '').strip()
+        email = data.get('email', '').strip().lower()
+        phone = data.get('phone', '').strip()
+        password = data.get('password', '')
+        organization_name = data.get('organization_name', '').strip()
+
+        # Валидация обязательных полей
+        if not full_name or not email or not password or not organization_name:
+            return jsonify({'error': 'Имя, email, пароль и название организации обязательны'}), 400
+
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return jsonify({'error': 'Некорректный формат email'}), 400
+
+        if len(password) < 6:
+            return jsonify({'error': 'Пароль должен быть не менее 6 символов'}), 400
+
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Проверка, существует ли уже владелец с таким email
+            cursor.execute("SELECT id FROM organization_owners WHERE email = %s", (email,))
+            if cursor.fetchone():
+                return jsonify({'error': 'Владелец с таким email уже существует'}), 409
+
+            # Проверка, существует ли уже организация с таким названием
+            cursor.execute("SELECT id FROM organizations WHERE name ILIKE %s", (organization_name,))
+            if cursor.fetchone():
+                return jsonify({'error': 'Организация с таким названием уже существует'}), 409
+
+            # Хэширование пароля
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+            # Сохранение данных владельца (временная запись, is_verified=False)
+            cursor.execute("""
+                INSERT INTO organization_owners (full_name, email, phone, password_hash, is_verified, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (full_name, email, phone, password_hash, False, True))
+            owner_id = cursor.fetchone()['id']
+
+            # Формируем данные для модерации
+            pending_data = {
+                'owner_id': owner_id,
+                'full_name': full_name,
+                'email': email,
+                'phone': phone,
+                'organization_name': organization_name,
+                'requested_at': datetime.utcnow().isoformat()
+            }
+
+            # Создаём запрос на модерацию
+            cursor.execute("""
+                INSERT INTO pending_requests (request_type, data, owner_email)
+                VALUES (%s, %s, %s)
+            """, ('new_org', psycopg2.extras.Json(pending_data), email))
+
+            conn.commit()
+
+            return jsonify({
+                'message': 'Регистрация успешна. Запрос на создание организации отправлен на модерацию.',
+                'owner_id': owner_id
+            }), 201
+
+    except Exception as e:
+        logger.error(f"Ошибка регистрации владельца: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
 @app.route('/api/owner/organizations', methods=['GET'])
 @require_owner_auth
 def get_owner_organization():
