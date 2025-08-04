@@ -816,12 +816,13 @@ def owner_register():
             # Хэширование пароля
             password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-            # Сохранение данных владельца (временная запись, is_verified=False)
+            # Сохранение владельца без привязки к организации (organization_id = NULL)
             cursor.execute("""
-                INSERT INTO organization_owners (full_name, email, phone, password_hash, is_verified, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO organization_owners 
+                (full_name, email, phone, password_hash, organization_id, is_verified, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (full_name, email, phone, password_hash, False, True))
+            """, (full_name, email, phone, password_hash, None, False, True))
             owner_id = cursor.fetchone()['id']
 
             # Формируем данные для модерации
@@ -848,7 +849,7 @@ def owner_register():
             }), 201
 
     except Exception as e:
-        logger.error(f"Ошибка регистрации владельца: {e}")
+        logger.error(f"Ошибка при регистрации владельца: {str(e)}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 @app.route('/api/owner/organizations', methods=['GET'])
@@ -1114,7 +1115,7 @@ def create_tables():
                 email VARCHAR(100) UNIQUE NOT NULL,
                 phone VARCHAR(50),
                 password_hash VARCHAR(255) NOT NULL,
-                organization_id INTEGER REFERENCES organizations(id),
+                organization_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
                 is_verified BOOLEAN DEFAULT FALSE,
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
