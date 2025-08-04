@@ -1640,20 +1640,47 @@ def create_test_organizations():
 def create_default_admin():
     """Создание администратора по умолчанию"""
     conn = db_manager.get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) FROM admins")
-        if cursor.fetchone()[0] > 0:
-            logger.info("Администраторы уже существуют")
-            return
-        username = "admin"
-        email = "admin@tyumen-resources.ru"
-        password = "admin123"
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        cursor.execute("""
-            INSERT INTO admins (username, email, password_hash)
-            VALUES (%s, %s, %s)
-        """, (username, email, password_hash))
-        logger.info("Создан администратор по умолчанию (admin/admin123)")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM admins")
+            if cursor.fetchone()[0] > 0:
+                logger.info("Администраторы уже существуют. Пропускаем создание.")
+                return
+
+            username = "admin"
+            email = "admin@tyumen-resources.ru"
+            password = "admin123"
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+            cursor.execute("""
+                INSERT INTO admins (
+                    username, 
+                    email, 
+                    password_hash, 
+                    is_active, 
+                    login_attempts, 
+                    locked_until, 
+                    last_login, 
+                    created_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """, (
+                username,
+                email,
+                password_hash,
+                True,           # is_active
+                0,              # login_attempts
+                None,           # locked_until
+                None,           # last_login
+                datetime.now(timezone.utc)  # created_at
+            ))
+            conn.commit()
+            logger.info("✅ Администратор по умолчанию успешно создан: username='admin', email='admin@tyumen-resources.ru'")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при создании администратора: {e}")
+        conn.rollback()
+        raise
 
 # ===============================
 # ОБРАБОТЧИКИ ОШИБОК
