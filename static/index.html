@@ -696,7 +696,8 @@
         // Показать детали организации
         async function showOrganizationDetails(id) {
             try {
-                const organization = await apiRequest(`/organizations/${id}`);
+                const response = await apiRequest(`/organizations/${id}`);
+                const organization = response.organization;     
                 const orgPage = document.getElementById('orgPage');
                 const orgDetails = document.getElementById('orgDetails');
                 
