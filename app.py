@@ -22,7 +22,7 @@ CORS(app, supports_credentials=True)
 
 # Конфигурация
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', '82.202.140.221'),
+    'host': os.getenv('DB_HOST', 'localhost'),
     'database': os.getenv('DB_NAME', 'resource_map'),
     'user': os.getenv('DB_USER', 'postgres'),
     'password': os.getenv('DB_PASSWORD', '1234'),
