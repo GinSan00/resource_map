@@ -987,7 +987,7 @@ def create_tables():
             
             CREATE TABLE IF NOT EXISTS organizations (
                 id SERIAL PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
+                name VARCHAR(255) NOT NULL UNIQUE,
                 main_service VARCHAR(255),
                 category_id INTEGER REFERENCES categories(id),
                 description TEXT,
