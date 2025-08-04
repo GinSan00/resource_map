@@ -449,7 +449,7 @@
         }
     </style>
     <!-- Yandex.Maps API -->
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=YOUR_YANDEX_MAPS_API_KEY&lang=ru_RU" async></script>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ba3261a7-c50d-42cc-9f77-7f40960eefb2&lang=ru_RU" async></script>
 </head>
 <body>
     <!-- Шапка -->
@@ -754,33 +754,43 @@
 
         // Показать Яндекс.Карту
         function showYandexMap(address) {
-            if (typeof ymaps === 'undefined') {
-                console.warn('Yandex Maps API not loaded yet');
+    if (typeof ymaps === 'undefined') {
+        console.warn('Yandex Maps API not loaded yet. Retrying...');
+        setTimeout(() => showYandexMap(address), 1000); // Повтор через 1 сек
+        return;
+    }
+
+    ymaps.ready().then(() => {
+        ymaps.geocode(address).then(res => {
+            const obj = res.geoObjects.get(0);
+            if (!obj) {
+                console.error('Geocoding failed: address not found');
+                document.getElementById('yandexMap').innerHTML = '<p>Адрес не найден на карте</p>';
                 return;
             }
-            
-            ymaps.ready(() => {
-                const geocodePromise = ymaps.geocode(address);
-                geocodePromise.then(res => {
-                    const coords = res.geoObjects.get(0).geometry.getCoordinates();
-                    const map = new ymaps.Map('yandexMap', {
-                        center: coords,
-                        zoom: 15,
-                        controls: ['zoomControl']
-                    });
-                    
-                    const placemark = new ymaps.Placemark(coords, {
-                        balloonContent: address
-                    });
-                    
-                    map.geoObjects.add(placemark);
-                    map.behaviors.disable('scrollZoom');
-                }).catch(err => {
-                    console.error('Geocoding error:', err);
-                    document.getElementById('yandexMap').innerHTML = '<p>Не удалось отобразить карту</p>';
-                });
+
+            const coords = obj.geometry.getCoordinates();
+            const map = new ymaps.Map('yandexMap', {
+                center: coords,
+                zoom: 15,
+                controls: ['zoomControl']
             });
-        }
+
+            const placemark = new ymaps.Placemark(coords, {
+                balloonContent: address
+            });
+
+            map.geoObjects.add(placemark);
+            map.behaviors.disable('scrollZoom');
+        }).catch(err => {
+            console.error('Geocoding error:', err);
+            document.getElementById('yandexMap').innerHTML = '<p>Не удалось отобразить карту</p>';
+        });
+    }).catch(err => {
+        console.error('Yandex Maps failed to initialize:', err);
+        document.getElementById('yandexMap').innerHTML = '<p>Ошибка загрузки карты</p>';
+    });
+}
 
         // Опрос
         function openSurvey() {
