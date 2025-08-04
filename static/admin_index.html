@@ -3,387 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель администратора - Карта ресурсов Тюмени</title>
+    <title>Панель администратора</title>
     <style>
+        /* Общие стили */
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #ffffff;
-            min-height: 100vh;
-            color: #2c3e50;
             line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
         }
 
-        /* Header */
-        .header {
-            background: #ffffff;
-            border-bottom: 2px solid #e9ecef;
-            padding: 2rem 0;
-            text-align: center;
+        .d-none {
+            display: none !important;
         }
 
-        .header-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 0.5rem;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            color: #6c757d;
-            font-weight: 400;
-        }
-
-        /* Авторизация */
+        /* Форма авторизации */
         .login-container {
-            min-height: 100vh;
             display: flex;
-            align-items: center;
             justify-content: center;
-            background: #f8f9fa;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
         }
 
         .login-form {
             background: white;
-            padding: 2.5rem;
-            border: 2px solid #e9ecef;
-            border-radius: 0;
-            box-shadow: none;
+            padding: 2rem;
+            border-radius: 10px;
             width: 100%;
             max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         .login-form h2 {
             text-align: center;
             margin-bottom: 1.5rem;
-            color: #2c3e50;
-            font-weight: 600;
-            font-size: 1.4rem;
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 1rem;
+            color: #2575fc;
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #495057;
-            font-weight: 500;
+            font-weight: bold;
         }
 
-        .form-control {
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #ced4da;
-            border-radius: 0;
-            font-size: 1rem;
-            transition: border-color 0.2s ease;
-            outline: none;
-        }
-
-        .form-control:focus {
-            border-color: #007bff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
         }
 
         .btn {
             display: inline-block;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 0;
-            font-size: 1rem;
-            font-weight: 500;
-            text-decoration: none;
+            border-radius: 5px;
             cursor: pointer;
-            transition: all 0.2s ease;
             text-align: center;
-            outline: none;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: background-color 0.3s;
         }
 
         .btn-primary {
-            background: #007bff;
+            background-color: #2575fc;
             color: white;
-            width: 100%;
         }
 
         .btn-primary:hover {
-            background: #0056b3;
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-
-        .btn-warning:hover {
-            background: #e0a800;
+            background-color: #1c6ae4;
         }
 
         .btn-secondary {
-            background: #6c757d;
+            background-color: #6c757d;
             color: white;
         }
 
         .btn-secondary:hover {
-            background: #545b62;
+            background-color: #5a6268;
         }
 
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 0.875rem;
+        .btn-success {
+            background-color: #28a745;
+            color: white;
         }
 
-        /* Главная панель */
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        /* Админ-панель */
         .admin-panel {
-            display: none;
+            display: flex;
             min-height: 100vh;
         }
 
-        .admin-panel.active {
-            display: block;
-        }
-
-        /* Хедер */
-        .admin-header {
-            background: white;
-            border-bottom: 2px solid #e9ecef;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .admin-header h1 {
-            color: #2c3e50;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .admin-user {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .admin-user span {
-            color: #6c757d;
-            font-weight: 500;
-        }
-
-        /* Сайдбар */
-        .admin-layout {
-            display: flex;
-            min-height: calc(100vh - 80px);
-        }
-
-        .admin-sidebar {
+        /* Боковая навигация */
+        .sidebar {
             width: 250px;
-            background: #f8f9fa;
-            border-right: 2px solid #e9ecef;
-            padding: 1.5rem 0;
+            background-color: #343a40;
+            color: white;
+            padding: 20px 0;
         }
 
-        .sidebar-nav {
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #fff;
+        }
+
+        .sidebar ul {
             list-style: none;
         }
 
-        .sidebar-nav li {
-            margin-bottom: 0.5rem;
+        .sidebar ul li {
+            margin-bottom: 5px;
         }
 
-        .sidebar-nav a {
+        .sidebar ul li a {
             display: block;
-            padding: 12px 24px;
-            color: #495057;
+            padding: 10px 20px;
+            color: #ccc;
             text-decoration: none;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent;
-            font-weight: 500;
+            transition: all 0.3s;
         }
 
-        .sidebar-nav a:hover,
-        .sidebar-nav a.active {
-            background: #f1f3f5;
-            color: #007bff;
-            border-left-color: #007bff;
+        .sidebar ul li a:hover,
+        .sidebar ul li a.active {
+            background-color: #007bff;
+            color: white;
         }
 
         /* Основной контент */
-        .admin-content {
+        .main-content {
             flex: 1;
-            padding: 2rem;
-            background: white;
+            padding: 20px;
+            background-color: #f8f9fa;
         }
 
-        /* Карточки статистики */
+        .content-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            color: #2575fc;
+        }
+
+        /* Статистика */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
+            gap: 20px;
             margin-bottom: 2rem;
         }
 
         .stat-card {
-            background: white;
+            background: #e9ecef;
             padding: 1.5rem;
-            border: 2px solid #e9ecef;
-            transition: border-color 0.2s ease;
-        }
-
-        .stat-card:hover {
-            border-color: #007bff;
+            border-radius: 8px;
+            text-align: center;
         }
 
         .stat-card h3 {
-            color: #6c757d;
-            font-size: 0.875rem;
-            font-weight: 500;
+            font-size: 1rem;
             margin-bottom: 0.5rem;
+            color: #495057;
         }
 
-        .stat-card .stat-number {
+        .stat-card p {
             font-size: 1.5rem;
-            font-weight: 600;
-            color: #2c3e50;
+            font-weight: bold;
+            color: #2575fc;
         }
 
         /* Таблицы */
-        .data-table {
-            background: white;
-            border: 2px solid #e9ecef;
-            margin-bottom: 2rem;
-        }
-
-        .table-header {
-            padding: 1.5rem;
-            border-bottom: 2px solid #e9ecef;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .table-header h2 {
-            color: #2c3e50;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .table-controls {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .search-input {
-            padding: 10px 16px;
-            border: 2px solid #ced4da;
-            border-radius: 0;
-            font-size: 0.95rem;
-            outline: none;
-            width: 200px;
-        }
-
-        .search-input:focus {
-            border-color: #007bff;
-        }
-
-        .filter-select {
-            padding: 10px 16px;
-            border: 2px solid #ced4da;
-            border-radius: 0;
-            font-size: 0.95rem;
-            outline: none;
-            background: white;
-        }
-
-        .filter-select:focus {
-            border-color: #007bff;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-        }
-
-        table {
+        .table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 1rem;
         }
 
-        th, td {
-            padding: 12px 16px;
+        .table th,
+        .table td {
+            padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid #dee2e6;
         }
 
-        th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-            font-size: 0.875rem;
+        .table th {
+            background-color: #e9ecef;
+            font-weight: bold;
         }
 
-        td {
-            color: #2c3e50;
-            font-size: 0.875rem;
+        .table tr:hover {
+            background-color: #f8f9fa;
         }
 
-        tbody tr:hover {
-            background: #f8f9fa;
+        /* Фильтры */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 5px;
         }
 
-        /* Статусы */
-        .status-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 0;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
+        .filters input,
+        .filters select,
+        .filters button {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-family: inherit;
         }
 
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .filters input {
+            flex: 1;
+            min-width: 200px;
         }
 
-        .status-inactive {
-            background: #f8d7da;
+        /* Пагинация */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+
+        /* Алерты */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
 
         /* Модальные окна */
@@ -393,220 +311,92 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0,0,0,0.5);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .modal.active {
-            opacity: 1;
-            visibility: visible;
         }
 
         .modal-content {
             background: white;
-            border: 2px solid #e9ecef;
-            padding: 2rem;
-            max-width: 600px;
+            border-radius: 10px;
             width: 90%;
-            max-height: 80vh;
+            max-width: 800px;
+            max-height: 90vh;
             overflow-y: auto;
             position: relative;
+            padding: 30px;
         }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #e9ecef;
-        }
-
-        .modal-header h3 {
-            color: #2c3e50;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .close-btn {
+        .close {
             position: absolute;
-            top: 15px;
+            top: 20px;
             right: 20px;
-            background: none;
-            border: none;
-            font-size: 1.5rem;
+            font-size: 2rem;
             cursor: pointer;
-            color: #6c757d;
-            padding: 5px;
-            width: 35px;
-            height: 35px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid transparent;
+            color: #aaa;
         }
 
-        .close-btn:hover {
-            color: #2c3e50;
-            border-color: #dee2e6;
+        .close:hover {
+            color: #333;
         }
 
-        .modal-footer {
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 2px solid #e9ecef;
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-        }
-
-        /* Формы */
         .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        /* Алерты */
-        .alert {
-            padding: 12px 16px;
-            margin-bottom: 1rem;
-            font-size: 0.875rem;
-            border: 2px solid transparent;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-color: #bee5eb;
-        }
-
-        /* Пагинация */
-        .pagination {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 2rem;
+            gap: 15px;
+            margin-bottom: 1rem;
         }
 
-        .pagination button {
-            padding: 8px 12px;
-            border: 2px solid #dee2e6;
-            background: white;
-            color: #2c3e50;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .pagination button:hover:not(:disabled) {
-            border-color: #007bff;
-            color: #007bff;
-        }
-
-        .pagination button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .pagination button.active {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
         }
 
         /* Адаптивность */
         @media (max-width: 768px) {
-            .admin-layout {
+            .admin-panel {
                 flex-direction: column;
             }
-
-            .admin-sidebar {
+            
+            .sidebar {
                 width: 100%;
-                order: 2;
-                padding: 1rem;
+                padding: 10px 0;
             }
-
-            .admin-content {
-                order: 1;
-                padding: 1rem;
+            
+            .sidebar ul {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
             }
-
-            .table-controls {
+            
+            .sidebar ul li {
+                margin: 5px;
+            }
+            
+            .sidebar ul li a {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .filters {
                 flex-direction: column;
-                align-items: stretch;
             }
-
-            .search-input {
+            
+            .filters input,
+            .filters select {
                 width: 100%;
             }
-
+            
             .form-row {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
+                flex-direction: column;
+                gap: 0;
             }
             
             .modal-content {
-                padding: 1.5rem;
-                margin: 1rem;
+                width: 95%;
+                padding: 20px;
             }
-        }
-
-        /* Утилиты */
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .mt-2 { margin-top: 1rem; }
-        .mb-2 { margin-bottom: 1rem; }
-        .d-none { display: none; }
-        .d-block { display: block; }
-
-        /* Загрузка */
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 2rem;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #007bff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -615,221 +405,287 @@
     <div id="loginContainer" class="login-container">
         <form id="loginForm" class="login-form">
             <h2>Вход в панель администратора</h2>
-            
             <div id="loginAlert" class="alert alert-error d-none"></div>
-            
             <div class="form-group">
-                <label for="username">Имя пользователя или email</label>
-                <input type="text" id="username" class="form-control" required>
+                <label for="username">Имя пользователя или Email</label>
+                <input type="text" id="username" name="username" required>
             </div>
-            
             <div class="form-group">
                 <label for="password">Пароль</label>
-                <input type="password" id="password" class="form-control" required>
+                <input type="password" id="password" name="password" required>
             </div>
-            
             <button type="submit" class="btn btn-primary">Войти</button>
         </form>
     </div>
 
-    <!-- Панель администратора -->
-    <div id="adminPanel" class="admin-panel">
-        <!-- Хедер -->
-        <header class="admin-header">
-            <h1>Панель администратора</h1>
-            <div class="admin-user">
-                <span id="adminUsername">Администратор</span>
-                <button id="logoutBtn" class="btn btn-secondary btn-sm">Выйти</button>
-            </div>
-        </header>
+    <!-- Основная панель -->
+    <div id="adminPanel" class="admin-panel d-none">
+        <!-- Навигация -->
+        <nav class="sidebar">
+            <h2>Админ-панель</h2>
+            <ul>
+                <li><a href="#" class="nav-link active" data-target="dashboard">Дашборд</a></li>
+                <li><a href="#" class="nav-link" data-target="organizations">Организации</a></li>
+                <li><a href="#" class="nav-link" data-target="categories">Категории</a></li>
+                <li><a href="#" class="nav-link" data-target="pending">Заявки</a></li>
+                <li><a href="#" id="logoutBtn">Выход</a></li>
+            </ul>
+        </nav>
 
-        <div class="admin-layout">
-            <!-- Сайдбар -->
-            <nav class="admin-sidebar">
-                <ul class="sidebar-nav">
-                    <li><a href="#dashboard" class="nav-link active">Дашборд</a></li>
-                    <li><a href="#organizations" class="nav-link">Организации</a></li>
-                </ul>
-            </nav>
-
-            <!-- Основной контент -->
-            <main class="admin-content">
-                <!-- Дашборд -->
-                <div id="dashboardSection" class="content-section">
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <h3>Всего организаций</h3>
-                            <div class="stat-number" id="totalOrganizations">0</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Активные</h3>
-                            <div class="stat-number" id="activeOrganizations">0</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Неактивные</h3>
-                            <div class="stat-number" id="inactiveOrganizations">0</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Категории</h3>
-                            <div class="stat-number" id="totalCategories">0</div>
-                        </div>
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Дашборд -->
+            <section id="dashboardSection" class="content-section">
+                <h2>Дашборд</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Всего организаций</h3>
+                        <p id="totalOrganizations">0</p>
                     </div>
-
-                    <div class="data-table">
-                        <div class="table-header">
-                            <h2>Последние организации</h2>
-                        </div>
-                        <div class="table-responsive">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Название</th>
-                                        <th>Категория</th>
-                                        <th>Дата создания</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="recentOrganizations">
-                                    <!-- Данные загружаются динамически -->
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="stat-card">
+                        <h3>Активных</h3>
+                        <p id="activeOrganizations">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Неактивных</h3>
+                        <p id="inactiveOrganizations">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Категорий</h3>
+                        <p id="totalCategories">0</p>
                     </div>
                 </div>
+                <h3>Последние добавленные организации</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Категория</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentOrganizations">
+                        <!-- Будет заполнено динамически -->
+                    </tbody>
+                </table>
+            </section>
 
-                <!-- Организации -->
-                <div id="organizationsSection" class="content-section d-none">
-                    <div class="data-table">
-                        <div class="table-header">
-                            <h2>Управление организациями</h2>
-                            <div class="table-controls">
-                                <input type="text" id="searchInput" class="search-input" placeholder="Поиск...">
-                                <select id="categoryFilter" class="filter-select">
-                                    <option value="">Все категории</option>
-                                </select>
-                                <select id="statusFilter" class="filter-select">
-                                    <option value="all">Все статусы</option>
-                                    <option value="active">Активные</option>
-                                    <option value="inactive">Неактивные</option>
-                                </select>
-                                <button id="addOrganizationBtn" class="btn btn-success btn-sm">Добавить</button>
-                            </div>
-                        </div>
-                        
-                        <div id="organizationsAlert" class="alert alert-success d-none"></div>
-                        
-                        <div class="table-responsive">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Название</th>
-                                        <th>Категория</th>
-                                        <th>Статус</th>
-                                        <th>Дата создания</th>
-                                        <th>Действия</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="organizationsTable">
-                                    <!-- Данные загружаются динамически -->
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div id="organizationsPagination" class="pagination"></div>
-                    </div>
+            <!-- Организации -->
+            <section id="organizationsSection" class="content-section d-none">
+                <div class="section-header">
+                    <h2>Организации</h2>
+                    <button class="btn btn-primary" onclick="openAddOrganizationModal()">Добавить организацию</button>
                 </div>
-            </main>
-        </div>
+                
+                <!-- Фильтры -->
+                <div class="filters">
+                    <input type="text" id="searchInput" placeholder="Поиск по названию...">
+                    <select id="categoryFilter">
+                        <option value="">Все категории</option>
+                    </select>
+                    <select id="statusFilter">
+                        <option value="all">Все статусы</option>
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="applyFilters()">Применить</button>
+                </div>
+
+                <!-- Таблица организаций -->
+                <div id="organizationsAlert" class="alert d-none"></div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Главная услуга</th>
+                            <th>Категория</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="organizationsTable">
+                        <!-- Будет заполнено динамически -->
+                    </tbody>
+                </table>
+
+                <!-- Пагинация -->
+                <div class="pagination" id="pagination">
+                    <!-- Будет заполнено динамически -->
+                </div>
+            </section>
+
+            <!-- Категории -->
+            <section id="categoriesSection" class="content-section d-none">
+                <div class="section-header">
+                    <h2>Категории</h2>
+                    <button class="btn btn-primary" onclick="openAddCategoryModal()">Добавить категорию</button>
+                </div>
+                
+                <div id="categoriesAlert" class="alert d-none"></div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Описание</th>
+                            <th>Кол-во организаций</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoriesTable">
+                        <!-- Будет заполнено динамически -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Заявки -->
+            <section id="pendingSection" class="content-section d-none">
+                <h2>Заявки на модерацию</h2>
+                <div id="pendingAlert" class="alert d-none"></div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Тип</th>
+                            <th>Email владельца</th>
+                            <th>Статус</th>
+                            <th>Дата</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingTable">
+                        <!-- Будет заполнено динамически -->
+                    </tbody>
+                </table>
+            </section>
+        </main>
     </div>
 
-    <!-- Модальное окно для добавления/редактирования организации -->
-    <div id="organizationModal" class="modal">
+    <!-- Модальное окно организации -->
+    <div id="organizationModal" class="modal d-none">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">Добавить организацию</h3>
-                <button type="button" class="close-btn" onclick="closeOrganizationModal()">&times;</button>
-            </div>
-            
+            <span class="close" onclick="closeOrganizationModal()">&times;</span>
+            <h2 id="modalTitle">Добавить организацию</h2>
+            <div id="organizationAlert" class="alert d-none"></div>
             <form id="organizationForm">
-                <div id="organizationAlert" class="alert alert-error d-none"></div>
-                
-                <input type="hidden" id="organizationId">
-                
-                <div class="form-group">
-                    <label for="orgName">Название *</label>
-                    <input type="text" id="orgName" name="name" class="form-control" required>
-                </div>
-                
+                <input type="hidden" id="orgId">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="orgCategory">Категория *</label>
-                        <select id="orgCategory" name="category" class="form-control" required>
-                            <option value="">Выберите категорию</option>
-                        </select>
+                        <label for="orgName">Название *</label>
+                        <input type="text" id="orgName" name="name" required>
                     </div>
                     <div class="form-group">
-                        <label for="orgPhone">Телефон</label>
-                        <input type="text" id="orgPhone" name="phone" class="form-control">
+                        <label for="orgMainService">Главная услуга (отображается в результатах)</label>
+                        <input type="text" id="orgMainService" name="main_service">
                     </div>
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="orgEmail">Email</label>
-                        <input type="email" id="orgEmail" name="email" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="orgWebsite">Веб-сайт</label>
-                        <input type="url" id="orgWebsite" name="website" class="form-control">
-                    </div>
-                </div>
-                
                 <div class="form-group">
-                    <label for="orgAddress">Адрес *</label>
-                    <input type="text" id="orgAddress" name="address" class="form-control" required>
+                    <label for="orgCategory">Категория *</label>
+                    <select id="orgCategory" name="category_id" required>
+                        <option value="">Выберите категорию</option>
+                    </select>
                 </div>
-                
                 <div class="form-group">
                     <label for="orgDescription">Описание *</label>
-                    <textarea id="orgDescription" name="description" class="form-control" required></textarea>
+                    <textarea id="orgDescription" name="description" rows="3" required></textarea>
                 </div>
-                
+                <div class="form-group">
+                    <label for="orgAddress">Адрес</label>
+                    <input type="text" id="orgAddress" name="address">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgPhone">Телефон</label>
+                        <input type="text" id="orgPhone" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgEmail">Email</label>
+                        <input type="email" id="orgEmail" name="email">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="orgWebsite">Сайт</label>
+                    <input type="url" id="orgWebsite" name="website">
+                </div>
                 <div class="form-group">
                     <label for="orgServices">Услуги</label>
-                    <textarea id="orgServices" name="services" class="form-control"></textarea>
+                    <textarea id="orgServices" name="services" rows="2"></textarea>
                 </div>
-                
                 <div class="form-group">
                     <label for="orgTags">Теги (через запятую)</label>
-                    <input type="text" id="orgTags" name="tags" class="form-control" placeholder="tag1, tag2, tag3">
+                    <input type="text" id="orgTags" name="tags">
+                </div>
+                
+                <h3>Контактное лицо</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contactPersonName">ФИО</label>
+                        <input type="text" id="contactPersonName" name="contact_person_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="contactPersonRole">Должность/роль</label>
+                        <input type="text" id="contactPersonRole" name="contact_person_role">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contactPersonPhone">Телефон</label>
+                        <input type="text" id="contactPersonPhone" name="contact_person_phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="contactPersonEmail">Email</label>
+                        <input type="email" id="contactPersonEmail" name="contact_person_email">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="contactPersonPhoto">Фото (ссылка)</label>
+                    <input type="url" id="contactPersonPhoto" name="contact_person_photo_url">
                 </div>
                 
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="orgIsActive" name="is_active" checked> 
-                        Активная организация
+                        <input type="checkbox" id="orgIsActive" name="is_active" checked> Активна
                     </label>
                 </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </form>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeOrganizationModal()">Отмена</button>
-                <button type="button" id="saveOrganizationBtn" class="btn btn-success">Сохранить</button>
-            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно категории -->
+    <div id="categoryModal" class="modal d-none">
+        <div class="modal-content">
+            <span class="close" onclick="closeCategoryModal()">&times;</span>
+            <h2 id="categoryModalTitle">Добавить категорию</h2>
+            <div id="categoryAlert" class="alert d-none"></div>
+            <form id="categoryForm">
+                <input type="hidden" id="categoryId">
+                <div class="form-group">
+                    <label for="categoryName">Название *</label>
+                    <input type="text" id="categoryName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="categoryDescription">Описание</label>
+                    <textarea id="categoryDescription" name="description" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </form>
         </div>
     </div>
 
     <script>
-        // Конфигурация
-        const API_BASE_URL = 'http://82.202.140.221:5000/api';
-        
+        // Базовый URL API
+        const API_BASE_URL = 'http://localhost:5000/api';
+
         // Состояние приложения
         let currentUser = null;
         let authToken = null;
         let currentPage = 1;
         let currentFilters = {};
         let isEditing = false;
-        let categories = []; // Хранилище категорий
+        let categories = [];
+        let pendingRequests = [];
 
         // Инициализация
         document.addEventListener('DOMContentLoaded', function() {
@@ -847,99 +703,23 @@
                 link.addEventListener('click', handleNavigation);
             });
             
-            // Организации
-            document.getElementById('addOrganizationBtn').addEventListener('click', openAddOrganizationModal);
-            document.getElementById('saveOrganizationBtn').addEventListener('click', saveOrganization);
-            document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 500));
-            document.getElementById('categoryFilter').addEventListener('change', handleFilter);
-            document.getElementById('statusFilter').addEventListener('change', handleFilter);
-        }
-
-        // Утилита для debounce
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
-        // Загрузка категорий с сервера
-        async function loadCategories() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/categories`);
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Полученные данные категорий:', data); // Для отладки
-                    
-                    // Обрабатываем разные форматы ответа
-                    let rawCategories = data.categories || data || [];
-                    
-                    // Если категории - это объекты с id и name
-                    categories = rawCategories.map(category => {
-                        if (typeof category === 'object' && category !== null) {
-                            return {
-                                id: category.id,
-                                name: category.name || category.category || category.title || String(category)
-                            };
-                        } else if (typeof category === 'string') {
-                            // Если сервер возвращает только строки, создаем объект
-                            return {
-                                id: category, // временно используем название как ID
-                                name: category
-                            };
-                        }
-                        return null;
-                    }).filter(cat => cat && cat.name && cat.name.trim()); // Убираем пустые значения
-                    
-                    console.log('Обработанные категории:', categories); // Для отладки
-                    
-                    // Обновляем селекты категорий
-                    updateCategorySelects();
-                } else {
-                    console.error('Ошибка загрузки категорий, статус:', response.status);
-                    // В случае ошибки используем пустой массив
-                    categories = [];
-                }
-            } catch (error) {
-                console.error('Ошибка подключения при загрузке категорий:', error);
-                categories = [];
-            }
-        }
-
-        // Обновление всех селектов категорий
-        function updateCategorySelects() {
-            // Фильтр категорий в таблице организаций
-            const categoryFilter = document.getElementById('categoryFilter');
-            categoryFilter.innerHTML = '<option value="">Все категории</option>';
-            
-            // Селект категории в модальном окне
-            const orgCategorySelect = document.getElementById('orgCategory');
-            orgCategorySelect.innerHTML = '<option value="">Выберите категорию</option>';
-            
-            // Заполняем опциями
-            categories.forEach(category => {
-                if (category && category.name && category.name.trim()) {
-                    // Для фильтра (используем название для фильтрации)
-                    const filterOption = document.createElement('option');
-                    filterOption.value = category.id;  
-                    filterOption.textContent = category.name;
-                    categoryFilter.appendChild(filterOption);
-                    
-                    // Для формы (используем ID как value)
-                    const formOption = document.createElement('option');
-                    formOption.value = category.id;
-                    formOption.textContent = category.name;
-                    formOption.setAttribute('data-name', category.name); // сохраняем название для поиска
-                    orgCategorySelect.appendChild(formOption);
+            // Фильтры
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
                 }
             });
             
-            console.log('Селекты категорий обновлены, количество категорий:', categories.length);
+            // Формы
+            document.getElementById('organizationForm').addEventListener('submit', handleOrganizationFormSubmit);
+            document.getElementById('categoryForm').addEventListener('submit', handleCategoryFormSubmit);
+            
+            // Закрытие модальных окон
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('modal')) {
+                    e.target.classList.add('d-none');
+                }
+            });
         }
 
         // Проверка авторизации
@@ -947,30 +727,57 @@
             const token = localStorage.getItem('adminToken');
             if (token) {
                 authToken = token;
-                fetchAdminProfile();
+                verifyToken();
             } else {
-                showLoginForm();
+                showLogin();
             }
         }
 
-        function showLoginForm() {
-            document.getElementById('loginContainer').style.display = 'flex';
-            document.getElementById('adminPanel').classList.remove('active');
+        async function verifyToken() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.admin;
+                    document.getElementById('adminUsername').textContent = currentUser.username;
+                    showAdminPanel();
+                } else {
+                    localStorage.removeItem('adminToken');
+                    showLogin();
+                }
+            } catch (error) {
+                console.error('Ошибка проверки токена:', error);
+                localStorage.removeItem('adminToken');
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginContainer').classList.remove('d-none');
+            document.getElementById('adminPanel').classList.add('d-none');
         }
 
         function showAdminPanel() {
-            document.getElementById('loginContainer').style.display = 'none';
-            document.getElementById('adminPanel').classList.add('active');
-            loadCategories(); // Загружаем категории при входе в панель
+            document.getElementById('loginContainer').classList.add('d-none');
+            document.getElementById('adminPanel').classList.remove('d-none');
             loadDashboard();
+            loadCategories();
         }
 
         // Авторизация
         async function handleLogin(e) {
             e.preventDefault();
-            
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showAlert('loginAlert', 'Заполните все поля', 'error');
+                return;
+            }
             
             try {
                 const response = await fetch(`${API_BASE_URL}/admin/login`, {
@@ -982,13 +789,10 @@
                 });
                 
                 const data = await response.json();
-                
                 if (response.ok) {
                     authToken = data.token;
                     currentUser = data.admin;
                     localStorage.setItem('adminToken', authToken);
-                    
-                    document.getElementById('adminUsername').textContent = currentUser.username;
                     showAdminPanel();
                 } else {
                     showAlert('loginAlert', data.error, 'error');
@@ -1009,61 +813,51 @@
             } catch (error) {
                 console.error('Ошибка выхода:', error);
             }
-            
             authToken = null;
             currentUser = null;
             localStorage.removeItem('adminToken');
-            showLoginForm();
-        }
-
-        async function fetchAdminProfile() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/profile`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    currentUser = data.admin;
-                    document.getElementById('adminUsername').textContent = currentUser.username;
-                    showAdminPanel();
-                } else {
-                    showLoginForm();
-                }
-            } catch (error) {
-                showLoginForm();
-            }
+            showLogin();
         }
 
         // Навигация
         function handleNavigation(e) {
             e.preventDefault();
-            const target = e.target.getAttribute('href').substring(1);
+            const target = e.target.getAttribute('data-target');
             
-            // Обновляем активный пункт меню
+            // Скрыть все секции
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('d-none');
+            });
+            
+            // Показать нужную секцию
+            if (target) {
+                document.getElementById(`${target}Section`).classList.remove('d-none');
+            }
+            
+            // Обновить активную ссылку
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
             });
             e.target.classList.add('active');
             
-            // Показываем соответствующую секцию
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.add('d-none');
-            });
-            
-            document.getElementById(`${target}Section`).classList.remove('d-none');
-            
-            // Загружаем данные для секции
-            if (target === 'dashboard') {
-                loadDashboard();
-            } else if (target === 'organizations') {
-                loadOrganizations();
+            // Загрузить данные для секции
+            switch(target) {
+                case 'dashboard':
+                    loadDashboard();
+                    break;
+                case 'organizations':
+                    loadOrganizations(1);
+                    break;
+                case 'categories':
+                    loadCategories();
+                    break;
+                case 'pending':
+                    loadPendingRequests();
+                    break;
             }
         }
 
-        // Загрузка дашборда
+        // Дашборд
         async function loadDashboard() {
             try {
                 const response = await fetch(`${API_BASE_URL}/admin/stats`, {
@@ -1071,49 +865,39 @@
                         'Authorization': `Bearer ${authToken}`
                     }
                 });
-                
                 if (response.ok) {
                     const data = await response.json();
-                    
-                    // Обновляем статистику
                     document.getElementById('totalOrganizations').textContent = data.stats.total_organizations;
                     document.getElementById('activeOrganizations').textContent = data.stats.active_organizations;
                     document.getElementById('inactiveOrganizations').textContent = data.stats.inactive_organizations;
                     document.getElementById('totalCategories').textContent = data.stats.total_categories;
                     
-                    // Обновляем таблицу последних организаций
                     const tbody = document.getElementById('recentOrganizations');
-                    tbody.innerHTML = data.recent_organizations.map(org => `
-                        <tr>
+                    tbody.innerHTML = data.recent_organizations.map(org => 
+                        `<tr>
                             <td>${org.name}</td>
                             <td>${org.category}</td>
                             <td>${new Date(org.created_at).toLocaleDateString()}</td>
-                        </tr>
-                    `).join('');
+                        </tr>`
+                    ).join('');
                 }
             } catch (error) {
                 console.error('Ошибка загрузки дашборда:', error);
             }
         }
 
-        // Загрузка организаций
+        // Организации
         async function loadOrganizations(page = 1) {
-            const params = new URLSearchParams({
-                page: page,
-                limit: 20,
-                search: currentFilters.search,
-                category_id: currentFilters.category_id,  
-                status: currentFilters.status
-            });
-            
-            Object.keys(currentFilters).forEach(key => {
-    const value = currentFilters[key];
-    if (value !== undefined && value !== null && value !== '') {
-        params.append(key, value);
-    }
-});
-
+            currentPage = page;
             try {
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: 20,
+                    search: currentFilters.search || '',
+                    category_id: currentFilters.category_id || '',
+                    status: currentFilters.status || 'all'
+                });
+                
                 const response = await fetch(`${API_BASE_URL}/admin/organizations?${params}`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
@@ -1122,234 +906,268 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    renderOrganizationsTable(data.organizations);
-                    renderPagination(data.page, data.pages, data.total);
-                    currentPage = data.page;
-                }
-            } catch (error) {
-                console.error('Ошибка загрузки организаций:', error);
-            }
-        }
-
-        function renderOrganizationsTable(organizations) {
-            const tbody = document.getElementById('organizationsTable');
-            tbody.innerHTML = organizations.map(org => `
-                <tr>
-                    <td>${org.id}</td>
-                    <td>${org.name}</td>
-                    <td>${org.category}</td>
-                    <td>
-                        <span class="status-badge ${org.is_active ? 'status-active' : 'status-inactive'}">
-                            ${org.is_active ? 'Активная' : 'Неактивная'}
-                        </span>
-                    </td>
-                    <td>${new Date(org.created_at).toLocaleDateString()}</td>
-                    <td>
-                        <button class="btn btn-warning btn-sm" onclick="editOrganization(${org.id})">Редактировать</button>
-                        <button class="btn btn-secondary btn-sm" onclick="toggleOrganizationStatus(${org.id}, ${org.is_active})">
-                            ${org.is_active ? 'Деактивировать' : 'Активировать'}
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteOrganization(${org.id})">Удалить</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function renderPagination(currentPage, totalPages, totalItems) {
-            const container = document.getElementById('organizationsPagination');
-            
-            if (totalPages <= 1) {
-                container.innerHTML = '';
-                return;
-            }
-            
-            let pagination = `<button ${currentPage === 1 ? 'disabled' : ''} onclick="loadOrganizations(${currentPage - 1})">Предыдущая</button>`;
-            
-            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
-                pagination += `<button class="${i === currentPage ? 'active' : ''}" onclick="loadOrganizations(${i})">${i}</button>`;
-            }
-            
-            pagination += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="loadOrganizations(${currentPage + 1})">Следующая</button>`;
-            
-            container.innerHTML = pagination;
-        }
-
-        // Поиск и фильтрация
-function handleSearch() {
-    const value = document.getElementById('searchInput').value.trim();
-    if (value) {
-        currentFilters.search = value;
-    } else {
-        delete currentFilters.search;
-    }
-    loadOrganizations(1);
-}
-
-        function handleFilter() {
-    const categoryFilter = document.getElementById('categoryFilter');
-    const statusFilter = document.getElementById('statusFilter');
-
-    // Только если значение не пустое и не undefined
-    if (categoryFilter.value) {
-        currentFilters.category_id = categoryFilter.value;
-    } else {
-        delete currentFilters.category_id;
-    }
-
-    if (statusFilter.value && statusFilter.value !== 'all') {
-        currentFilters.status = statusFilter.value;
-    } else {
-        delete currentFilters.status;
-    }
-
-    // Поиск — только если есть текст
-    const searchInput = document.getElementById('searchInput').value.trim();
-    if (searchInput) {
-        currentFilters.search = searchInput;
-    } else {
-        delete currentFilters.search;
-    }
-
-    loadOrganizations(1);
-}
-
-        // Модальные окна
-        function openAddOrganizationModal() {
-            isEditing = false;
-            document.getElementById('modalTitle').textContent = 'Добавить организацию';
-            document.getElementById('organizationForm').reset();
-            document.getElementById('organizationId').value = '';
-            document.getElementById('orgIsActive').checked = true;
-            
-            // Обновляем категории в селекте перед открытием модального окна
-            if (categories.length === 0) {
-                loadCategories().then(() => {
-                    document.getElementById('organizationModal').classList.add('active');
-                });
-            } else {
-                document.getElementById('organizationModal').classList.add('active');
-            }
-        }
-
-        async function editOrganization(id) {
-            isEditing = true;
-            document.getElementById('modalTitle').textContent = 'Редактировать организацию';
-            
-            try {
-                // Получаем данные организации
-                const response = await fetch(`${API_BASE_URL}/admin/organizations/${id}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    const org = data.organization;
-                    
-                    // Заполняем форму
-                    document.getElementById('organizationId').value = org.id;
-                    document.getElementById('orgName').value = org.name || '';
-                    document.getElementById('orgPhone').value = org.phone || '';
-                    document.getElementById('orgEmail').value = org.email || '';
-                    document.getElementById('orgWebsite').value = org.website || '';
-                    document.getElementById('orgAddress').value = org.address || '';
-                    document.getElementById('orgDescription').value = org.description || '';
-                    document.getElementById('orgServices').value = org.services || '';
-                    document.getElementById('orgTags').value = Array.isArray(org.tags) ? org.tags.join(', ') : '';
-                    document.getElementById('orgIsActive').checked = org.is_active;
-                    
-                    // Устанавливаем категорию в селекте
-                    const categorySelect = document.getElementById('orgCategory');
-                    
-                    // Ищем категорию по ID или по названию
-                    let categoryFound = false;
-                    
-                    // Сначала пробуем найти по category_id
-                    if (org.category_id) {
-                        categorySelect.value = org.category_id;
-                        if (categorySelect.value === String(org.category_id)) {
-                            categoryFound = true;
-                        }
-                    }
-                    
-                    // Если не найдено по ID, пробуем найти по названию категории
-                    if (!categoryFound && org.category) {
-                        const options = categorySelect.options;
-                        for (let i = 0; i < options.length; i++) {
-                            if (options[i].getAttribute('data-name') === org.category || 
-                                options[i].textContent === org.category) {
-                                categorySelect.selectedIndex = i;
-                                categoryFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // Если категория не найдена в списке, добавляем её временно
-                    if (!categoryFound && (org.category || org.category_id)) {
-                        const option = document.createElement('option');
-                        option.value = org.category_id || org.category;
-                        option.textContent = org.category || `ID: ${org.category_id}`;
-                        option.selected = true;
-                        categorySelect.appendChild(option);
-                    }
-                    
-                    document.getElementById('organizationModal').classList.add('active');
+                    displayOrganizations(data.organizations, data.total, data.pages);
                 } else {
-                    showAlert('organizationsAlert', 'Ошибка загрузки данных организации', 'error');
+                    showAlert('organizationsAlert', 'Ошибка загрузки организаций', 'error');
                 }
             } catch (error) {
                 showAlert('organizationsAlert', 'Ошибка подключения к серверу', 'error');
             }
         }
 
-        function closeOrganizationModal() {
-            document.getElementById('organizationModal').classList.remove('active');
-            document.getElementById('organizationAlert').classList.add('d-none');
+        function displayOrganizations(organizations, total, pages) {
+            const tbody = document.getElementById('organizationsTable');
+            tbody.innerHTML = organizations.map(org => `
+                <tr>
+                    <td>${org.id}</td>
+                    <td>${org.name}</td>
+                    <td>${org.main_service || ''}</td>
+                    <td>${org.category}</td>
+                    <td>${org.is_active ? 'Активна' : 'Неактивна'}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editOrganization(${org.id})">Редактировать</button>
+                        <button class="btn btn-danger" onclick="deleteOrganization(${org.id})">Удалить</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Обновить пагинацию
+            updatePagination(pages);
         }
 
-        async function saveOrganization() {
-            const form = document.getElementById('organizationForm');
-            const formData = new FormData(form);
+        function updatePagination(pages) {
+            const container = document.getElementById('pagination');
+            let pagination = '';
             
-            // Проверяем обязательные поля
-            const name = formData.get('name');
-            const categoryId = document.getElementById('orgCategory').value;
-            const description = formData.get('description');
-            const address = formData.get('address');
-            
-            console.log('Проверка полей:', { name, categoryId, description, address }); // Для отладки
-            
-            if (!name || !categoryId || !description || !address) {
-                let missingFields = [];
-                if (!name) missingFields.push('Название');
-                if (!categoryId) missingFields.push('Категория');
-                if (!description) missingFields.push('Описание');
-                if (!address) missingFields.push('Адрес');
-                
-                showAlert('organizationAlert', `Пожалуйста, заполните обязательные поля: ${missingFields.join(', ')}`, 'error');
-                return;
+            for (let i = 1; i <= pages; i++) {
+                pagination += `<button class="${i === currentPage ? 'active' : ''}" onclick="loadOrganizations(${i})">${i}</button>`;
             }
             
-            // Подготавливаем данные
+            container.innerHTML = pagination;
+        }
+
+        function applyFilters() {
+            currentFilters = {
+                search: document.getElementById('searchInput').value.trim(),
+                category_id: document.getElementById('categoryFilter').value,
+                status: document.getElementById('statusFilter').value
+            };
+            loadOrganizations(1);
+        }
+
+        // Категории
+        async function loadCategories() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/categories`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    categories = data.categories;
+                    displayCategories();
+                    updateCategorySelects();
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки категорий:', error);
+            }
+        }
+
+        function displayCategories() {
+            const tbody = document.getElementById('categoriesTable');
+            tbody.innerHTML = categories.map(category => `
+                <tr>
+                    <td>${category.id}</td>
+                    <td>${category.name}</td>
+                    <td>${category.description || ''}</td>
+                    <td>${category.organization_count}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editCategory(${category.id})">Редактировать</button>
+                        <button class="btn btn-danger" onclick="deleteCategory(${category.id})">Удалить</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateCategorySelects() {
+            const select = document.getElementById('categoryFilter');
+            const formSelect = document.getElementById('orgCategory');
+            
+            // Очистить селекты
+            select.innerHTML = '<option value="">Все категории</option>';
+            formSelect.innerHTML = '<option value="">Выберите категорию</option>';
+            
+            // Заполнить опциями
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                select.appendChild(option.cloneNode(true));
+                formSelect.appendChild(option);
+            });
+        }
+
+        // Заявки на модерацию
+        async function loadPendingRequests() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/pending-requests`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    pendingRequests = data.requests;
+                    displayPendingRequests();
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки заявок:', error);
+            }
+        }
+
+        function displayPendingRequests() {
+            const tbody = document.getElementById('pendingTable');
+            tbody.innerHTML = pendingRequests.map(request => `
+                <tr>
+                    <td>${request.id}</td>
+                    <td>${request.request_type}</td>
+                    <td>${request.owner_email}</td>
+                    <td>${request.status}</td>
+                    <td>${new Date(request.created_at).toLocaleDateString()}</td>
+                    <td>
+                        ${request.status === 'pending' ? `
+                            <button class="btn btn-success" onclick="approveRequest(${request.id})">Одобрить</button>
+                            <button class="btn btn-danger" onclick="rejectRequest(${request.id})">Отклонить</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveRequest(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/pending-requests/${id}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    showAlert('pendingAlert', 'Заявка одобрена', 'success');
+                    loadPendingRequests();
+                } else {
+                    const data = await response.json();
+                    showAlert('pendingAlert', data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('pendingAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        async function rejectRequest(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/pending-requests/${id}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    showAlert('pendingAlert', 'Заявка отклонена', 'success');
+                    loadPendingRequests();
+                } else {
+                    const data = await response.json();
+                    showAlert('pendingAlert', data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('pendingAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        // Модальные окна организаций
+        function openAddOrganizationModal() {
+            isEditing = false;
+            document.getElementById('modalTitle').textContent = 'Добавить организацию';
+            document.getElementById('organizationForm').reset();
+            document.getElementById('orgId').value = '';
+            document.getElementById('organizationModal').classList.remove('d-none');
+        }
+
+        async function editOrganization(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/organizations/${id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const org = data.organization;
+                    
+                    document.getElementById('orgId').value = org.id;
+                    document.getElementById('orgName').value = org.name || '';
+                    document.getElementById('orgMainService').value = org.main_service || '';
+                    document.getElementById('orgCategory').value = org.category_id || '';
+                    document.getElementById('orgDescription').value = org.description || '';
+                    document.getElementById('orgAddress').value = org.address || '';
+                    document.getElementById('orgPhone').value = org.phone || '';
+                    document.getElementById('orgEmail').value = org.email || '';
+                    document.getElementById('orgWebsite').value = org.website || '';
+                    document.getElementById('orgServices').value = org.services || '';
+                    document.getElementById('orgTags').value = Array.isArray(org.tags) ? org.tags.join(', ') : '';
+                    document.getElementById('orgIsActive').checked = org.is_active;
+                    
+                    // Контактное лицо
+                    document.getElementById('contactPersonName').value = org.contact_person_name || '';
+                    document.getElementById('contactPersonRole').value = org.contact_person_role || '';
+                    document.getElementById('contactPersonPhone').value = org.contact_person_phone || '';
+                    document.getElementById('contactPersonEmail').value = org.contact_person_email || '';
+                    document.getElementById('contactPersonPhoto').value = org.contact_person_photo_url || '';
+                    
+                    isEditing = true;
+                    document.getElementById('modalTitle').textContent = 'Редактировать организацию';
+                    document.getElementById('organizationModal').classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки организации:', error);
+            }
+        }
+
+        async function handleOrganizationFormSubmit(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
             const data = {
-                name: name,
-                category_id: parseInt(categoryId), // Отправляем category_id как число
-                description: description,
-                address: address,
+                name: formData.get('name'),
+                main_service: formData.get('main_service'),
+                category_id: parseInt(formData.get('category_id')),
+                description: formData.get('description'),
+                address: formData.get('address'),
                 phone: formData.get('phone'),
                 email: formData.get('email'),
                 website: formData.get('website'),
                 services: formData.get('services'),
                 tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-                is_active: document.getElementById('orgIsActive').checked
+                is_active: document.getElementById('orgIsActive').checked,
+                contact_person_name: formData.get('contact_person_name'),
+                contact_person_role: formData.get('contact_person_role'),
+                contact_person_phone: formData.get('contact_person_phone'),
+                contact_person_email: formData.get('contact_person_email'),
+                contact_person_photo_url: formData.get('contact_person_photo_url')
             };
             
-            console.log('Данные для отправки:', data); // Для отладки
-            
             try {
-                const url = isEditing 
-                    ? `${API_BASE_URL}/admin/organizations/${document.getElementById('organizationId').value}`
-                    : `${API_BASE_URL}/admin/organizations`;
-                
+                const url = isEditing ? 
+                    `${API_BASE_URL}/admin/organizations/${document.getElementById('orgId').value}` : 
+                    `${API_BASE_URL}/admin/organizations`;
                 const method = isEditing ? 'PUT' : 'POST';
                 
                 const response = await fetch(url, {
@@ -1362,11 +1180,10 @@ function handleSearch() {
                 });
                 
                 const result = await response.json();
-                
                 if (response.ok) {
                     closeOrganizationModal();
                     loadOrganizations(currentPage);
-                    loadCategories(); // Перезагружаем категории на случай добавления новой
+                    loadCategories();
                     showAlert('organizationsAlert', result.message, 'success');
                 } else {
                     showAlert('organizationAlert', result.error, 'error');
@@ -1376,34 +1193,12 @@ function handleSearch() {
             }
         }
 
-        async function toggleOrganizationStatus(id, currentStatus) {
-            const action = currentStatus ? 'деактивировать' : 'активировать';
-            
-            if (confirm(`Вы уверены, что хотите ${action} эту организацию?`)) {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/admin/organizations/${id}/toggle`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `Bearer ${authToken}`
-                        }
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        loadOrganizations(currentPage);
-                        showAlert('organizationsAlert', result.message, 'success');
-                    } else {
-                        showAlert('organizationsAlert', result.error, 'error');
-                    }
-                } catch (error) {
-                    showAlert('organizationsAlert', 'Ошибка подключения к серверу', 'error');
-                }
-            }
+        function closeOrganizationModal() {
+            document.getElementById('organizationModal').classList.add('d-none');
         }
 
         async function deleteOrganization(id) {
-            if (confirm('Вы уверены, что хотите удалить эту организацию? Это действие нельзя отменить.')) {
+            if (confirm('Вы уверены, что хотите удалить эту организацию?')) {
                 try {
                     const response = await fetch(`${API_BASE_URL}/admin/organizations/${id}`, {
                         method: 'DELETE',
@@ -1412,16 +1207,100 @@ function handleSearch() {
                         }
                     });
                     
-                    const result = await response.json();
-                    
                     if (response.ok) {
                         loadOrganizations(currentPage);
-                        showAlert('organizationsAlert', result.message, 'success');
+                        showAlert('organizationsAlert', 'Организация удалена', 'success');
                     } else {
-                        showAlert('organizationsAlert', result.error, 'error');
+                        const data = await response.json();
+                        showAlert('organizationsAlert', data.error, 'error');
                     }
                 } catch (error) {
                     showAlert('organizationsAlert', 'Ошибка подключения к серверу', 'error');
+                }
+            }
+        }
+
+        // Модальные окна категорий
+        function openAddCategoryModal() {
+            isEditing = false;
+            document.getElementById('categoryModalTitle').textContent = 'Добавить категорию';
+            document.getElementById('categoryForm').reset();
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryModal').classList.remove('d-none');
+        }
+
+        async function editCategory(id) {
+            const category = categories.find(c => c.id === id);
+            if (category) {
+                document.getElementById('categoryId').value = category.id;
+                document.getElementById('categoryName').value = category.name;
+                document.getElementById('categoryDescription').value = category.description || '';
+                isEditing = true;
+                document.getElementById('categoryModalTitle').textContent = 'Редактировать категорию';
+                document.getElementById('categoryModal').classList.remove('d-none');
+            }
+        }
+
+        async function handleCategoryFormSubmit(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description')
+            };
+            
+            try {
+                const url = isEditing ? 
+                    `${API_BASE_URL}/admin/categories/${document.getElementById('categoryId').value}` : 
+                    `${API_BASE_URL}/admin/categories`;
+                const method = isEditing ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    closeCategoryModal();
+                    loadCategories();
+                    showAlert('categoriesAlert', result.message, 'success');
+                } else {
+                    showAlert('categoryAlert', result.error, 'error');
+                }
+            } catch (error) {
+                showAlert('categoryAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('categoryModal').classList.add('d-none');
+        }
+
+        async function deleteCategory(id) {
+            if (confirm('Вы уверены, что хотите удалить эту категорию?')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/admin/categories/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        loadCategories();
+                        showAlert('categoriesAlert', 'Категория удалена', 'success');
+                    } else {
+                        const data = await response.json();
+                        showAlert('categoriesAlert', data.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('categoriesAlert', 'Ошибка подключения к серверу', 'error');
                 }
             }
         }
@@ -1438,22 +1317,6 @@ function handleSearch() {
                 alertContainer.classList.add('d-none');
             }, 5000);
         }
-
-        // Закрытие модальных окон по клику вне области
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal')) {
-                e.target.classList.remove('active');
-            }
-        });
-
-        // Закрытие модальных окон по Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal.active').forEach(modal => {
-                    modal.classList.remove('active');
-                });
-            }
-        });
     </script>
 </body>
 </html>
