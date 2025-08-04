@@ -594,11 +594,12 @@
         });
 
         // Проверка, нужно ли показать опрос
-        function checkForSurvey() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('survey') === 'true') {
-                openSurvey();
-            }
+function checkForSurvey() {
+        localStorage.setItem('hasVisitedBefore', 'true');
+        
+        // Показать опрос с небольшой задержкой для лучшего UX
+        setTimeout(() => {
+            openSurvey();
         }
 
         // Загрузка категорий
