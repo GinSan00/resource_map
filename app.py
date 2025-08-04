@@ -141,6 +141,10 @@ def index():
 def admin_index():
     return send_from_directory('static', 'admin_index.html')
 
+@app.route('/owner')
+def owner_index():
+    return send_from_directory('static', 'owner_index.html')
+
 @app.route('/api/search', methods=['GET'])
 def semantic_search():
     """Семантический поиск организаций"""

@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система регистрации владельцев организаций</title>
+    <style>
+        /* Общие стили */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .d-none {
+            display: none !important;
+        }
+
+        /* Форма авторизации */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        }
+
+        .login-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .login-form h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #2575fc;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background-color: #2575fc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1c6ae4;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        /* Панель владельца */
+        .owner-panel {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Боковая навигация */
+        .sidebar {
+            width: 250px;
+            background-color: #343a40;
+            color: white;
+            padding: 20px 0;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #fff;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar ul li {
+            margin-bottom: 5px;
+        }
+
+        .sidebar ul li a {
+            display: block;
+            padding: 10px 20px;
+            color: #ccc;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sidebar ul li a:hover,
+        .sidebar ul li a.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        /* Основной контент */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .content-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            color: #2575fc;
+        }
+
+        /* Алерты */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 1rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-link {
+            color: #2575fc;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .text-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Статистика */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: #e9ecef;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .stat-card p {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2575fc;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .owner-panel {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                padding: 10px 0;
+            }
+            
+            .sidebar ul {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .sidebar ul li {
+                margin: 5px;
+            }
+            
+            .sidebar ul li a {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Экран авторизации/регистрации -->
+    <div id="auth-screen" class="login-container">
+        <div class="login-form">
+            <!-- Форма входа -->
+            <div id="login-form" class="form-container">
+                <h2>Вход для владельцев</h2>
+                <div id="login-alert" class="alert alert-error d-none"></div>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="login-email">Email:</label>
+                        <input type="email" id="login-email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Пароль:</label>
+                        <input type="password" id="login-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </form>
+                <div class="text-center" style="margin-top: 15px;">
+                    <a href="#" class="text-link" onclick="showRegisterForm()">Зарегистрироваться</a>
+                </div>
+            </div>
+
+            <!-- Форма регистрации -->
+            <div id="register-form" class="form-container d-none">
+                <h2>Регистрация владельца</h2>
+                <div id="register-alert" class="alert alert-error d-none"></div>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="reg-full-name">ФИО:</label>
+                        <input type="text" id="reg-full-name" name="full_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email">Email:</label>
+                        <input type="email" id="reg-email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-phone">Телефон:</label>
+                        <input type="tel" id="reg-phone" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-org-name">Название организации:</label>
+                        <input type="text" id="reg-org-name" name="org_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Пароль:</label>
+                        <input type="password" id="reg-password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-confirm-password">Подтвердите пароль:</label>
+                        <input type="password" id="reg-confirm-password" name="confirm_password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </form>
+                <div class="text-center" style="margin-top: 15px;">
+                    <a href="#" class="text-link" onclick="showLoginForm()">Уже есть аккаунт?</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Панель владельца -->
+    <div id="owner-panel" class="owner-panel d-none">
+        <div class="sidebar">
+            <h2>Панель владельца</h2>
+            <ul>
+                <li><a href="#" class="nav-link active" data-section="dashboard">Главная</a></li>
+                <li><a href="#" class="nav-link" data-section="organization">Моя организация</a></li>
+                <li><a href="#" class="nav-link" onclick="logout()">Выйти</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content">
+            <!-- Главная страница -->
+            <div id="dashboard-section" class="section active">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Добро пожаловать!</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Статус организации</h3>
+                            <p id="org-status">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Последнее обновление</h3>
+                            <p id="last-update">-</p>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>Информация:</strong> Здесь вы можете управлять информацией о своей организации. Все изменения проходят модерацию администратора.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Раздел организации -->
+            <div id="organization-section" class="section d-none">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Моя организация</h2>
+                        <button id="edit-org-btn" class="btn btn-primary" onclick="toggleEditMode()">Редактировать</button>
+                    </div>
+                    
+                    <div id="org-alert" class="alert alert-success d-none"></div>
+                    
+                    <!-- Просмотр организации -->
+                    <div id="org-view" class="org-container">
+                        <div class="alert alert-info">
+                            <strong>Загрузка данных организации...</strong>
+                        </div>
+                    </div>
+
+                    <!-- Редактирование организации -->
+                    <div id="org-edit" class="org-container d-none">
+                        <form id="orgUpdateForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="org-name">Название организации:</label>
+                                    <input type="text" id="org-name" name="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="org-main-service">Основная услуга:</label>
+                                    <input type="text" id="org-main-service" name="main_service">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="org-description">Описание:</label>
+                                <textarea id="org-description" name="description" rows="4"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="org-address">Адрес:</label>
+                                    <input type="text" id="org-address" name="address">
+                                </div>
+                                <div class="form-group">
+                                    <label for="org-phone">Телефон:</label>
+                                    <input type="tel" id="org-phone" name="phone">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="org-email">Email:</label>
+                                    <input type="email" id="org-email" name="email">
+                                </div>
+                                <div class="form-group">
+                                    <label for="org-website">Веб-сайт:</label>
+                                    <input type="url" id="org-website" name="website">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="org-services">Услуги:</label>
+                                <textarea id="org-services" name="services" rows="3"></textarea>
+                            </div>
+                            
+                            <h3>Контактное лицо</h3>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contact-name">Имя:</label>
+                                    <input type="text" id="contact-name" name="contact_person_name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contact-role">Должность:</label>
+                                    <input type="text" id="contact-role" name="contact_person_role">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contact-phone">Телефон:</label>
+                                    <input type="tel" id="contact-phone" name="contact_person_phone">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contact-email">Email:</label>
+                                    <input type="email" id="contact-email" name="contact_person_email">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contact-photo">URL фото:</label>
+                                <input type="url" id="contact-photo" name="contact_person_photo_url">
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-success">Сохранить изменения</button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Отмена</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация API
+        const API_BASE = 'localhost:5000/api';
+        
+        // Глобальные переменные
+        let currentUser = null;
+        let currentOrganization = null;
+        let authToken = null;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            setupEventListeners();
+        });
+
+        // Проверка авторизации
+        function checkAuth() {
+            const token = localStorage.getItem('owner_token');
+            if (token) {
+                authToken = token;
+                validateToken();
+            } else {
+                showAuthScreen();
+            }
+        }
+
+        // Валидация токена
+        async function validateToken() {
+            try {
+                const orgResponse = await fetch(`${API_BASE}/owner/organizations`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (orgResponse.ok) {
+                    const orgData = await orgResponse.json();
+                    currentOrganization = orgData.organization;
+                    showOwnerPanel();
+                    loadDashboard();
+                } else {
+                    localStorage.removeItem('owner_token');
+                    showAuthScreen();
+                }
+            } catch (error) {
+                console.error('Ошибка валидации токена:', error);
+                localStorage.removeItem('owner_token');
+                showAuthScreen();
+            }
+        }
+
+        // Настройка обработчиков событий
+        function setupEventListeners() {
+            // Форма входа
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // Форма регистрации
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            
+            // Форма обновления организации
+            document.getElementById('orgUpdateForm').addEventListener('submit', handleOrgUpdate);
+            
+            // Навигация
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const section = this.dataset.section;
+                    if (section) {
+                        showSection(section);
+                        setActiveNav(this);
+                    }
+                });
+            });
+        }
+
+        // Обработка входа
+        async function handleLogin(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            hideAlert('login-alert');
+            
+            try {
+                const response = await fetch(`${API_BASE}/owner/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    authToken = result.token;
+                    currentUser = result.owner;
+                    localStorage.setItem('owner_token', authToken);
+                    validateToken();
+                } else {
+                    showAlert('login-alert', result.error || 'Ошибка входа', 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка входа:', error);
+                showAlert('login-alert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        // Обработка регистрации
+        async function handleRegister(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            hideAlert('register-alert');
+            
+            // Проверка паролей
+            if (data.password !== data.confirm_password) {
+                showAlert('register-alert', 'Пароли не совпадают', 'error');
+                return;
+            }
+            
+            delete data.confirm_password;
+            
+            try {
+                const response = await fetch(`${API_BASE}/owner/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('register-alert', result.message || 'Заявка успешно отправлена!', 'success');
+                    e.target.reset();
+                } else {
+                    showAlert('register-alert', result.error || 'Ошибка регистрации', 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка регистрации:', error);
+                showAlert('register-alert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        // Обработка обновления организации
+        async function handleOrgUpdate(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            hideAlert('org-alert');
+            
+            try {
+                const response = await fetch(`${API_BASE}/owner/organizations`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('org-alert', result.message || 'Запрос на обновление отправлен!', 'success');
+                    toggleEditMode();
+                } else {
+                    showAlert('org-alert', result.error || 'Ошибка обновления', 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка обновления организации:', error);
+                showAlert('org-alert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        // Показать экран авторизации
+        function showAuthScreen() {
+            document.getElementById('auth-screen').classList.remove('d-none');
+            document.getElementById('owner-panel').classList.add('d-none');
+        }
+
+        // Показать панель владельца
+        function showOwnerPanel() {
+            document.getElementById('auth-screen').classList.add('d-none');
+            document.getElementById('owner-panel').classList.remove('d-none');
+        }
+
+        // Переключение форм авторизации
+        function showLoginForm() {
+            document.getElementById('login-form').classList.remove('d-none');
+            document.getElementById('register-form').classList.add('d-none');
+            hideAlert('login-alert');
+            hideAlert('register-alert');
+        }
+
+        function showRegisterForm() {
+            document.getElementById('login-form').classList.add('d-none');
+            document.getElementById('register-form').classList.remove('d-none');
+            hideAlert('login-alert');
+            hideAlert('register-alert');
+        }
+
+        // Показать секцию
+        function showSection(sectionName) {
+            // Скрыть все секции
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('d-none');
+            });
+            
+            // Показать нужную секцию
+            document.getElementById(`${sectionName}-section`).classList.remove('d-none');
+            
+            // Загрузить данные для секции
+            if (sectionName === 'organization') {
+                loadOrganization();
+            } else if (sectionName === 'dashboard') {
+                loadDashboard();
+            }
+        }
+
+        // Установить активную навигацию
+        function setActiveNav(activeLink) {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            activeLink.classList.add('active');
+        }
+
+        // Загрузить панель управления
+        function loadDashboard() {
+            if (currentOrganization) {
+                document.getElementById('org-status').textContent = currentOrganization.is_active ? 'Активна' : 'Неактивна';
+                document.getElementById('last-update').textContent = currentOrganization.updated_at ? 
+                    new Date(currentOrganization.updated_at).toLocaleDateString('ru-RU') : 'Не указано';
+            }
+        }
+
+        // Загрузить данные организации
+        function loadOrganization() {
+            if (!currentOrganization) {
+                document.getElementById('org-view').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>Организация не найдена</strong><br>
+                        Возможно, ваша заявка еще на рассмотрении.
+                    </div>
+                `;
+                return;
+            }
+
+            const org = currentOrganization;
+            document.getElementById('org-view').innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><strong>Название:</strong></label>
+                        <p>${org.name || 'Не указано'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>Основная услуга:</strong></label>
+                        <p>${org.main_service || 'Не указано'}</p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><strong>Описание:</strong></label>
+                    <p>${org.description || 'Не указано'}</p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><strong>Адрес:</strong></label>
+                        <p>${org.address || 'Не указано'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>Телефон:</strong></label>
+                        <p>${org.phone || 'Не указано'}</p>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><strong>Email:</strong></label>
+                        <p>${org.email || 'Не указано'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>Веб-сайт:</strong></label>
+                        <p>${org.website ? `<a href="${org.website}" target="_blank">${org.website}</a>` : 'Не указано'}</p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><strong>Услуги:</strong></label>
+                    <p>${org.services || 'Не указано'}</p>
+                </div>
+                
+                <h3>Контактное лицо</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><strong>Имя:</strong></label>
+                        <p>${org.contact_person_name || 'Не указано'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>Должность:</strong></label>
+                        <p>${org.contact_person_role || 'Не указано'}</p>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><strong>Телефон:</strong></label>
+                        <p>${org.contact_person_phone || 'Не указано'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>Email:</strong></label>
+                        <p>${org.contact_person_email || 'Не указано'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Переключить режим редактирования
+        function toggleEditMode() {
+            const viewDiv = document.getElementById('org-view');
+            const editDiv = document.getElementById('org-edit');
+            const editBtn = document.getElementById('edit-org-btn');
+            
+            if (editDiv.classList.contains('d-none')) {
+                // Включить режим редактирования
+                viewDiv.classList.add('d-none');
+                editDiv.classList.remove('d-none');
+                editBtn.textContent = 'Отмена';
+                editBtn.classList.remove('btn-secondary');
+            editBtn.classList.add('btn-primary');
+            hideAlert('org-alert');
+        }
+
+        // Заполнить форму редактирования
+        function fillEditForm() {
+            if (!currentOrganization) return;
+            
+            const org = currentOrganization;
+            const form = document.getElementById('orgUpdateForm');
+            
+            // Заполнить поля формы
+            form.querySelector('#org-name').value = org.name || '';
+            form.querySelector('#org-main-service').value = org.main_service || '';
+            form.querySelector('#org-description').value = org.description || '';
+            form.querySelector('#org-address').value = org.address || '';
+            form.querySelector('#org-phone').value = org.phone || '';
+            form.querySelector('#org-email').value = org.email || '';
+            form.querySelector('#org-website').value = org.website || '';
+            form.querySelector('#org-services').value = org.services || '';
+            form.querySelector('#contact-name').value = org.contact_person_name || '';
+            form.querySelector('#contact-role').value = org.contact_person_role || '';
+            form.querySelector('#contact-phone').value = org.contact_person_phone || '';
+            form.querySelector('#contact-email').value = org.contact_person_email || '';
+            form.querySelector('#contact-photo').value = org.contact_person_photo_url || '';
+        }
+
+        // Выход из системы
+        function logout() {
+            localStorage.removeItem('owner_token');
+            authToken = null;
+            currentUser = null;
+            currentOrganization = null;
+            showAuthScreen();
+            showLoginForm();
+        }
+
+        // Показать алерт
+        function showAlert(alertId, message, type = 'error') {
+            const alertElement = document.getElementById(alertId);
+            alertElement.textContent = message;
+            alertElement.className = `alert alert-${type}`;
+            alertElement.classList.remove('d-none');
+        }
+
+        // Скрыть алерт
+        function hideAlert(alertId) {
+            const alertElement = document.getElementById(alertId);
+            alertElement.classList.add('d-none');
+        }
+
+        // Утилита для форматирования даты
+        function formatDate(dateString) {
+            if (!dateString) return 'Не указано';
+            return new Date(dateString).toLocaleDateString('ru-RU', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Обработка ошибок сети
+        window.addEventListener('online', function() {
+            console.log('Соединение восстановлено');
+        });
+
+        window.addEventListener('offline', function() {
+            console.log('Потеряно соединение с интернетом');
+            showAlert('login-alert', 'Отсутствует подключение к интернету', 'error');
+        });
+
+        // Автоматическое скрытие алертов через 5 секунд
+        function autoHideAlert(alertId, delay = 5000) {
+            setTimeout(() => {
+                hideAlert(alertId);
+            }, delay);
+        }
+
+        // Обновленная функция показа алерта с автоскрытием
+        function showAlert(alertId, message, type = 'error', autoHide = false) {
+            const alertElement = document.getElementById(alertId);
+            alertElement.textContent = message;
+            alertElement.className = `alert alert-${type}`;
+            alertElement.classList.remove('d-none');
+            
+            if (autoHide) {
+                autoHideAlert(alertId);
+            }
+        }
+
+        // Валидация email
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Валидация телефона
+        function validatePhone(phone) {
+            const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+            return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+        }
+
+        // Дополнительная валидация формы регистрации
+        document.getElementById('registerForm').addEventListener('input', function(e) {
+            const field = e.target;
+            
+            // Валидация email
+            if (field.name === 'email' && field.value) {
+                if (!validateEmail(field.value)) {
+                    field.setCustomValidity('Введите корректный email адрес');
+                } else {
+                    field.setCustomValidity('');
+                }
+            }
+            
+            // Валидация телефона
+            if (field.name === 'phone' && field.value) {
+                if (!validatePhone(field.value)) {
+                    field.setCustomValidity('Введите корректный номер телефона');
+                } else {
+                    field.setCustomValidity('');
+                }
+            }
+            
+            // Валидация пароля
+            if (field.name === 'password' && field.value) {
+                if (field.value.length < 6) {
+                    field.setCustomValidity('Пароль должен содержать минимум 6 символов');
+                } else {
+                    field.setCustomValidity('');
+                }
+            }
+            
+            // Валидация подтверждения пароля
+            if (field.name === 'confirm_password' && field.value) {
+                const password = document.getElementById('reg-password').value;
+                if (field.value !== password) {
+                    field.setCustomValidity('Пароли не совпадают');
+                } else {
+                    field.setCustomValidity('');
+                }
+            }
+        });
+
+        // Обработка refresh токена (если понадобится)
+        async function refreshToken() {
+            try {
+                const response = await fetch(`${API_BASE}/owner/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    authToken = result.token;
+                    localStorage.setItem('owner_token', authToken);
+                    return true;
+                }
+            } catch (error) {
+                console.error('Ошибка обновления токена:', error);
+            }
+            return false;
+        }
+
+        // Перехват 401 ошибок для автоматического logout
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const response = await originalFetch(...args);
+            
+            if (response.status === 401 && authToken) {
+                // Попытка обновить токен
+                const refreshed = await refreshToken();
+                if (!refreshed) {
+                    logout();
+                    showAlert('login-alert', 'Сессия истекла. Войдите заново.', 'error');
+                }
+            }
+            
+            return response;
+        };
+
+        // Показать загрузку
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = '<div style="text-align: center; padding: 20px;">Загрузка...</div>';
+            }
+        }
+
+        // Обработка Enter в формах
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                const form = e.target.closest('form');
+                if (form) {
+                    e.preventDefault();
+                    form.requestSubmit();
+                }
+            }
+        });
+    </script>
+</body>
