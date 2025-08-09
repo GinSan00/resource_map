@@ -32,11 +32,10 @@ JWT_EXPIRATION_HOURS = 24
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_mt_nlu_ru"
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
+
 # ===============================
 # КЛАСС УПРАВЛЕНИЯ БД
 # ===============================
-
-
 class DatabaseManager:
     def __init__(self):
         self.pool = None
@@ -69,11 +68,10 @@ class DatabaseManager:
 
 db_manager = DatabaseManager()
 
+
 # ===============================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ===============================
-
-
 def generate_embedding(text: str):
     """Генерация эмбеддинга для текста"""
     try:
@@ -123,6 +121,7 @@ def verify_jwt_token(token: str):
 # Администраторы - Auth
 def require_auth(f):
     """Декоратор для защиты эндпоинтов администратора"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.headers.get("Authorization")
@@ -151,6 +150,7 @@ def generate_owner_jwt_token(owner_id: int, email: str) -> str:
 
 def require_owner_auth(f):
     """Декоратор для защиты эндпоинтов владельца"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.headers.get("Authorization")
@@ -205,7 +205,7 @@ def semantic_search():
             # Поиск по косинусному сходству
             cursor.execute(
                 """
-                SELECT
+                SELECT 
                     o.id, o.name, o.main_service, o.description, o.address,
                     o.phone, o.email, o.website, o.services, o.tags,
                     o.contact_person_name, o.contact_person_phone,
@@ -257,7 +257,7 @@ def get_organizations():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
                 """
-                SELECT
+                SELECT 
                     o.id, o.name, o.main_service, o.description, o.address,
                     o.phone, o.email, o.website, o.services, o.tags,
                     o.contact_person_name, o.contact_person_phone,
@@ -283,7 +283,7 @@ def get_organization(org_id):
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
                 """
-                SELECT
+                SELECT 
                     o.id, o.name, o.main_service, o.description, o.address,
                     o.phone, o.email, o.website, o.services, o.tags,
                     o.contact_person_name, o.contact_person_role,
@@ -543,7 +543,7 @@ def get_pending_requests():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
                 """
-                SELECT
+                SELECT 
                     pr.id, pr.request_type, pr.data, pr.owner_email, pr.created_at,
                     pr.status, pr.reviewed_at, a.email as reviewed_by_email
                 FROM pending_requests pr
@@ -628,9 +628,8 @@ def approve_pending_request(request_id: int):
                 ).decode("utf-8")
                 cursor.execute(
                     """
-                    INSERT INTO organization_owners
-                    (full_name, email, phone, password_hash,
-                     organization_id, is_verified, is_active)
+                    INSERT INTO organization_owners 
+                    (full_name, email, phone, password_hash, organization_id, is_verified, is_active)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
@@ -659,16 +658,17 @@ def approve_pending_request(request_id: int):
                     (data["email"], data["org_id"]),
                 )
                 if cursor.fetchone():
-                    return jsonify({"error": "Владелец уже привязан к этой организации"}), 400
+                    return jsonify(
+                        {"error": "Владелец уже привязан к этой организации"}
+                    ), 400
 
                 password_hash = bcrypt.hashpw(
                     data["password"].encode("utf-8"), bcrypt.gensalt()
                 ).decode("utf-8")
                 cursor.execute(
                     """
-                    INSERT INTO organization_owners
-                    (full_name, email, phone, password_hash,
-                     organization_id, is_verified, is_active)
+                    INSERT INTO organization_owners 
+                    (full_name, email, phone, password_hash, organization_id, is_verified, is_active)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
@@ -786,7 +786,7 @@ def register_owner():
         data = request.get_json()
 
         required_fields = ["full_name", "email",
-            "password", "organization_name"]
+                           "password", "organization_name"]
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"error": f"Поле {field} обязательно"}), 400
@@ -802,16 +802,22 @@ def register_owner():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             # Проверка существования владельца
             cursor.execute(
-                "SELECT id, is_verified FROM organization_owners WHERE email = %s", (email,))
+                "SELECT id, is_verified FROM organization_owners WHERE email = %s",
+                (email,),
+            )
             existing_owner = cursor.fetchone()
             if existing_owner:
                 if existing_owner["is_verified"]:
-                    return jsonify({"error": "Владелец с таким email уже существует"}), 400
+                    return jsonify(
+                        {"error": "Владелец с таким email уже существует"}
+                    ), 400
                 # Можно обновить данные, если не подтверждён
 
             # Проверка существования организации
             cursor.execute(
-                "SELECT id, name FROM organizations WHERE name = %s", (data["organization_name"],))
+                "SELECT id, name FROM organizations WHERE name = %s",
+                (data["organization_name"],),
+            )
             org_result = cursor.fetchone()
 
             request_type = "claim_org" if org_result else "new_org"
@@ -838,7 +844,8 @@ def register_owner():
                 pending_data["contact_person_email"] = data.get(
                     "contact_person_email")
                 pending_data["contact_person_photo_url"] = data.get(
-                    "contact_person_photo_url")
+                    "contact_person_photo_url"
+                )
 
             # Создаём запрос на модерацию
             cursor.execute(
@@ -883,12 +890,17 @@ def owner_login():
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
             if not owner["is_verified"]:
-                return jsonify({"error": "Аккаунт ожидает подтверждения администратора"}), 401
+                return jsonify(
+                    {"error": "Аккаунт ожидает подтверждения администратора"}
+                ), 401
 
             if not owner["is_active"]:
                 return jsonify({"error": "Аккаунт деактивирован"}), 401
 
-            if not bcrypt.checkpw(password.encode("utf-8"), owner["password_hash"].encode("utf-8")):
+            if not bcrypt.checkpw(
+                password.encode(
+                    "utf-8"), owner["password_hash"].encode("utf-8")
+            ):
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
             token = generate_owner_jwt_token(owner["id"], owner["email"])
@@ -914,8 +926,13 @@ def claim_organization():
     try:
         data = request.get_json()
 
-        required_fields = ["full_name", "email",
-            "password", "organization_name", "category_id"]
+        required_fields = [
+            "full_name",
+            "email",
+            "password",
+            "organization_name",
+            "category_id",
+        ]
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"error": f"Поле {field} обязательно"}), 400
@@ -928,14 +945,17 @@ def claim_organization():
         with conn.cursor() as cursor:
             # Проверка существования организации
             cursor.execute(
-                "SELECT id FROM organizations WHERE name = %s", (data["organization_name"],))
+                "SELECT id FROM organizations WHERE name = %s",
+                (data["organization_name"],),
+            )
             org = cursor.fetchone()
             if not org:
                 return jsonify({"error": "Организация не найдена"}), 400
 
             # Проверка, не привязан ли уже владелец
             cursor.execute(
-                "SELECT id FROM organization_owners WHERE email = %s", (email,))
+                "SELECT id FROM organization_owners WHERE email = %s", (email,)
+            )
             if cursor.fetchone():
                 return jsonify({"error": "Владелец с таким email уже существует"}), 400
 
@@ -968,7 +988,9 @@ def claim_organization():
             )
             conn.commit()
 
-            return jsonify({"message": "Запрос на привязку отправлен на модерацию"}), 201
+            return jsonify(
+                {"message": "Запрос на привязку отправлен на модерацию"}
+            ), 201
     except Exception as e:
         print(f"Ошибка привязки к организации: {e}")
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
@@ -1114,8 +1136,9 @@ def create_default_admin():
         with conn.cursor() as cursor:
             email = "admin@example.com"
             password = "admin123"
-            password_hash = bcrypt.hashpw(password.encode(
-                "utf-8"), bcrypt.gensalt()).decode("utf-8")
+            password_hash = bcrypt.hashpw(
+                password.encode("utf-8"), bcrypt.gensalt()
+            ).decode("utf-8")
 
             cursor.execute("SELECT id FROM admins WHERE email = %s", (email,))
             if cursor.fetchone():
@@ -1266,5 +1289,24 @@ def create_test_organizations():
                         org["name"],
                     ),
                 )
-                print(f"
+                print(f"✅ Организация добавлена: {org['name']}")
+        conn.commit()
+        print("✅ Все 30 тестовых организаций добавлены (или уже существуют).")
+    except Exception as e:
+        print(f"❌ Ошибка создания тестовых организаций: {e}")
+        conn.rollback()
 
+
+# ===============================
+# ЗАПУСК ПРИЛОЖЕНИЯ
+# ===============================
+if __name__ == "__main__":
+    try:
+        db_manager.init_pool()
+        create_tables()
+        create_default_admin()
+        create_test_categories()
+        create_test_organizations()
+        app.run(host="0.0.0.0", port=5000, debug=True)
+    except Exception as e:
+        print(f"❌ Ошибка запуска приложения: {e}")
