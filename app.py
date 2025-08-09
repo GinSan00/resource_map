@@ -609,6 +609,7 @@ def create_organization():
             result = cursor.fetchone()
             organization = dict(result)
             organization["created_at"] = organization["created_at"].isoformat()
+            conn.commit()
             return jsonify(
                 {"message": "Организация успешно создана", "organization": organization}
             ), 201
@@ -710,6 +711,7 @@ def update_organization(org_id: int):
                     org_id,
                 ),
             )
+            conn.commit()
             return jsonify({"message": "Организация успешно обновлена"})
     except Exception as e:
         logger.error(f"Ошибка обновления организации: {e}")
@@ -724,6 +726,7 @@ def delete_organization(org_id: int):
         conn = db_manager.get_connection()
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
+
             if cursor.rowcount == 0:
                 return jsonify({"error": "Организация не найдена"}), 404
             return jsonify({"message": "Организация успешно удалена"})
@@ -1217,6 +1220,7 @@ def approve_pending_request(request_id: int):
                 (admin_id, request_id),
             )
 
+            conn.commit()
             return jsonify({"message": "Заявка одобрена"})
     except Exception as e:
         logger.error(f"Ошибка одобрения заявки: {e}")
