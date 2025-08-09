@@ -323,8 +323,7 @@ def admin_login():
                     {"error": "Аккаунт временно заблокирован. Попробуйте позже"}
                 ), 401
             if not bcrypt.checkpw(
-                password.encode(
-                    "utf-8"), admin["password_hash"].encode("utf-8")
+                password.encode("utf-8"), admin["password_hash"].encode("utf-8")
             ):
                 new_attempts = admin["login_attempts"] + 1
                 locked_until = None
@@ -388,8 +387,7 @@ def admin_login():
 def admin_logout():
     """Выход администратора"""
     token = request.headers.get("Authorization").split(" ")[1]
-    token_hash = bcrypt.hashpw(token.encode(
-        "utf-8"), bcrypt.gensalt()).decode("utf-8")
+    token_hash = bcrypt.hashpw(token.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     conn = db_manager.get_connection()
     with conn.cursor() as cursor:
         cursor.execute(
@@ -514,8 +512,7 @@ def get_admin_organizations():
 
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(
-                count_query, params[:-2] if len(params) > 2 else params)
+            cursor.execute(count_query, params[:-2] if len(params) > 2 else params)
             total = cursor.fetchone()["count"]
             cursor.execute(base_query, params)
             results = cursor.fetchall()
@@ -564,8 +561,7 @@ def create_organization():
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
-                "SELECT id FROM categories WHERE id = %s", (
-                    data["category_id"],)
+                "SELECT id FROM categories WHERE id = %s", (data["category_id"],)
             )
             if not cursor.fetchone():
                 return jsonify({"error": "Категория не существует"}), 400
@@ -615,8 +611,7 @@ def create_organization():
             organization["created_at"] = organization["created_at"].isoformat()
             conn.commit()
             return jsonify(
-                {"message": "Организация успешно создана",
-                    "organization": organization}
+                {"message": "Организация успешно создана", "organization": organization}
             ), 201
     except Exception as e:
         logger.error(f"Ошибка создания организации: {e}")
@@ -660,8 +655,7 @@ def update_organization(org_id: int):
 
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(
-                "SELECT id FROM organizations WHERE id = %s", (org_id,))
+            cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
             if not cursor.fetchone():
                 return jsonify({"error": "Организация не найдена"}), 404
 
@@ -671,8 +665,7 @@ def update_organization(org_id: int):
 
             if data.get("category_id"):
                 cursor.execute(
-                    "SELECT id FROM categories WHERE id = %s", (
-                        data["category_id"],)
+                    "SELECT id FROM categories WHERE id = %s", (data["category_id"],)
                 )
                 if not cursor.fetchone():
                     return jsonify({"error": "Категория не существует"}), 400
@@ -732,8 +725,7 @@ def delete_organization(org_id: int):
     try:
         conn = db_manager.get_connection()
         with conn.cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM organizations WHERE id = %s", (org_id,))
+            cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
 
             if cursor.rowcount == 0:
                 return jsonify({"error": "Организация не найдена"}), 404
@@ -815,8 +807,7 @@ def register_owner():
         if not data:
             return jsonify({"error": "Данные не предоставлены"}), 400
 
-        required_fields = ["full_name", "email",
-                           "organization_name", "password"]
+        required_fields = ["full_name", "email", "organization_name", "password"]
         for field in required_fields:
             if not data.get(field, "").strip():
                 return jsonify({"error": f"Поле {field} обязательно"}), 400
@@ -827,8 +818,7 @@ def register_owner():
         conn = db_manager.get_connection()
         with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT id FROM organization_owners WHERE email = %s", (
-                    data["email"],)
+                "SELECT id FROM organization_owners WHERE email = %s", (data["email"],)
             )
             if cursor.fetchone():
                 return jsonify(
@@ -862,10 +852,10 @@ def register_owner():
                 INSERT INTO pending_requests (request_type, data, owner_email)
                 VALUES (%s, %s, %s)
             """,
-                (request_type, psycopg2.extras.Json(
-                    pending_data), data["email"]),
+                (request_type, psycopg2.extras.Json(pending_data), data["email"]),
             )
 
+            conn.commit()
             return jsonify({"message": "Заявка успешно отправлена на модерацию"}), 201
     except Exception as e:
         logger.error(f"Ошибка регистрации владельца: {e}")
@@ -904,8 +894,7 @@ def owner_login():
                     {"error": "Аккаунт ожидает подтверждения администратора"}
                 ), 401
             if not bcrypt.checkpw(
-                password.encode(
-                    "utf-8"), owner["password_hash"].encode("utf-8")
+                password.encode("utf-8"), owner["password_hash"].encode("utf-8")
             ):
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
@@ -963,8 +952,7 @@ def owner_register():
 
             # Проверка, существует ли уже организация с таким названием
             cursor.execute(
-                "SELECT id FROM organizations WHERE name ILIKE %s", (
-                    organization_name,)
+                "SELECT id FROM organizations WHERE name ILIKE %s", (organization_name,)
             )
             if cursor.fetchone():
                 return jsonify(
@@ -1953,8 +1941,7 @@ def create_default_admin():
         with conn.cursor() as cursor:
             cursor.execute("SELECT COUNT(*) FROM admins")
             if cursor.fetchone()[0] > 0:
-                logger.info(
-                    "Администраторы уже существуют. Пропускаем создание.")
+                logger.info("Администраторы уже существуют. Пропускаем создание.")
                 return
 
             username = "admin"
