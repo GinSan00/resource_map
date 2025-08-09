@@ -24,8 +24,7 @@ from sentence_transformers import SentenceTransformer
 db_manager = None
 
 # JWT
-JWT_SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 JWT_EXPIRATION_HOURS = 24
 
 # Модель для эмбеддингов
@@ -129,7 +128,7 @@ def require_auth(f):
             return jsonify({"error": "Токен не предоставлен"}), 401
         token = token.split(" ")[1]
         payload = verify_jwt_t
-            return jsonify({"error": "Неверный или истекший токен"}), 401
+        return jsonify({"error": "Неверный или истекший токен"}), 401
         request.current_admin = payload
         return f(*args, **kwargs)
 
@@ -330,8 +329,7 @@ def admin_login():
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
             if not bcrypt.checkpw(
-                password.encode(
-                    "utf-8"), admin["password_hash"].encode("utf-8")
+                password.encode("utf-8"), admin["password_hash"].encode("utf-8")
             ):
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
@@ -388,8 +386,7 @@ def create_organization():
         with conn.cursor() as cursor:
             # Проверка существования категории
             cursor.execute(
-                "SELECT id FROM categories WHERE id = %s", (
-                    data["category_id"],)
+                "SELECT id FROM categories WHERE id = %s", (data["category_id"],)
             )
             if not cursor.fetchone():
                 return jsonify({"error": "Категория не существует"}), 400
@@ -456,8 +453,7 @@ def update_organization(org_id):
             # Проверка существования категории
             if "category_id" in data and data["category_id"]:
                 cursor.execute(
-                    "SELECT id FROM categories WHERE id = %s", (
-                        data["category_id"],)
+                    "SELECT id FROM categories WHERE id = %s", (data["category_id"],)
                 )
                 if not cursor.fetchone():
                     return jsonify({"error": "Категория не существует"}), 400
@@ -519,8 +515,7 @@ def delete_organization(org_id: int):
     try:
         conn = db_manager.get_connection()
         with conn.cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM organizations WHERE id = %s", (org_id,))
+            cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
             if cursor.rowcount == 0:
                 return jsonify({"error": "Организация не найдена"}), 404
             conn.commit()
@@ -645,8 +640,7 @@ def approve_pending_request(request_id: int):
             elif request_type == "claim_org":
                 # Привязка владельца к существующей организации
                 cursor.execute(
-                    "SELECT id FROM organizations WHERE id = %s", (
-                        data["org_id"],)
+                    "SELECT id FROM organizations WHERE id = %s", (data["org_id"],)
                 )
                 if not cursor.fetchone():
                     return jsonify({"error": "Организация не существует"}), 400
@@ -684,8 +678,7 @@ def approve_pending_request(request_id: int):
             elif request_type == "update_org":
                 # Обновление организации
                 org_id = data["organization_id"]
-                cursor.execute(
-                    "SELECT id FROM organizations WHERE id = %s", (org_id,))
+                cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
                 if not cursor.fetchone():
                     return jsonify({"error": "Организация не найдена"}), 400
 
@@ -784,8 +777,7 @@ def register_owner():
     try:
         data = request.get_json()
 
-        required_fields = ["full_name", "email",
-                           "password", "organization_name"]
+        required_fields = ["full_name", "email", "password", "organization_name"]
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"error": f"Поле {field} обязательно"}), 400
@@ -836,12 +828,9 @@ def register_owner():
                 pending_data["services"] = data.get("services")
                 pending_data["tags"] = data.get("tags")
                 pending_data["main_service"] = data.get("main_service")
-                pending_data["contact_person_name"] = data.get(
-                    "contact_person_name")
-                pending_data["contact_person_phone"] = data.get(
-                    "contact_person_phone")
-                pending_data["contact_person_email"] = data.get(
-                    "contact_person_email")
+                pending_data["contact_person_name"] = data.get("contact_person_name")
+                pending_data["contact_person_phone"] = data.get("contact_person_phone")
+                pending_data["contact_person_email"] = data.get("contact_person_email")
                 pending_data["contact_person_photo_url"] = data.get(
                     "contact_person_photo_url"
                 )
@@ -897,8 +886,7 @@ def owner_login():
                 return jsonify({"error": "Аккаунт деактивирован"}), 401
 
             if not bcrypt.checkpw(
-                password.encode(
-                    "utf-8"), owner["password_hash"].encode("utf-8")
+                password.encode("utf-8"), owner["password_hash"].encode("utf-8")
             ):
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
@@ -1176,8 +1164,7 @@ def create_test_categories():
                     "INSERT INTO categories (name) SELECT %s WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = %s)",
                     (category_name, category_name),
                 )
-                print(f"✅ Категория добавлена или уже существует: {
-                      category_name}")
+                print(f"✅ Категория добавлена или уже существует: {category_name}")
         conn.commit()
     except Exception as e:
         print(f"❌ Ошибка создания категорий: {e}")
