@@ -128,8 +128,7 @@ def require_auth(f):
         if not token or not token.startswith("Bearer "):
             return jsonify({"error": "Токен не предоставлен"}), 401
         token = token.split(" ")[1]
-        payload = verify_jwt_token(token)
-        if not payload or payload.get("role") != "admin":
+        payload = verify_jwt_t
             return jsonify({"error": "Неверный или истекший токен"}), 401
         request.current_admin = payload
         return f(*args, **kwargs)
