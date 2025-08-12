@@ -885,9 +885,7 @@ def owner_login():
             if not owner["is_active"]:
                 return jsonify({"error": "Аккаунт деактивирован"}), 401
 
-            if not bcrypt.checkpw(
-                password.encode("utf-8"), owner["password_hash"].encode("utf-8")
-            ):
+            if not bcrypt.checkpw(password.encode("utf-8"), owner["password_hash"].encode("utf-8")):
                 return jsonify({"error": "Неверные учетные данные"}), 401
 
             token = generate_owner_jwt_token(owner["id"], owner["email"])
