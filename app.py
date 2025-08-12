@@ -922,6 +922,7 @@ def approve_pending_request(request_id: int):
             conn.commit()
             return jsonify({"message": "Заявка одобрена"})
 
+
                 # Создание владельца
                 password_hash = bcrypt.hashpw(
                     data["password"].encode("utf-8"), bcrypt.gensalt()
