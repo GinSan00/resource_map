@@ -787,26 +787,29 @@ def approve_pending_request(request_id: int):
             if not request_data:
                 return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
 
-            # ✅ Извлекаем тип заявки и данные
+            # ✅ Извлекаем тип и данные заявки
             request_type = request_data["request_type"]
-            owner_data = request_data["data"]  # Это dict из JSONB поля
+            owner_data = request_data["data"]  # JSON из БД
 
             # Обработка разных типов заявок
             if request_type == "create_owner":
-                # Создание владельца (новая организация)
                 full_name = owner_data["full_name"]
                 email = owner_data["email"]
-                password = owner_data["password"]
+                password = owner_data["password"]  # Пароль в открытом виде
                 organization_id = owner_data.get("organization_id")
 
                 # Хешируем пароль
                 password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-                cursor.execute("""
-                    INSERT INTO organization_owners (full_name, email, password_hash, organization_id, is_verified, is_active)
+                cursor.execute(
+                    """
+                    INSERT INTO organization_owners 
+                    (full_name, email, password_hash, organization_id, is_verified, is_active)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING id
-                """, (full_name, email, password_hash, organization_id, True, True))
+                    """,
+                    (full_name, email, password_hash, organization_id, True, True)
+                )
                 new_owner_id = cursor.fetchone()["id"]
 
             elif request_type == "claim_org":
@@ -816,12 +819,12 @@ def approve_pending_request(request_id: int):
                 password = owner_data["password"]
                 org_id = owner_data["org_id"]
 
-                # Проверяем, существует ли организация
+                # Проверка существования организации
                 cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
                 if not cursor.fetchone():
                     return jsonify({"error": "Организация не существует"}), 400
 
-                # Проверяем, нет ли уже владельца с таким email у этой организации
+                # Проверка, нет ли уже владельца с таким email
                 cursor.execute(
                     "SELECT id FROM organization_owners WHERE email = %s AND organization_id = %s",
                     (email, org_id),
@@ -831,19 +834,22 @@ def approve_pending_request(request_id: int):
 
                 password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO organization_owners 
                     (full_name, email, phone, password_hash, organization_id, is_verified, is_active)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    full_name,
-                    email,
-                    owner_data.get("phone"),
-                    password_hash,
-                    org_id,
-                    True,
-                    True,
-                ))
+                    """,
+                    (
+                        full_name,
+                        email,
+                        owner_data.get("phone"),
+                        password_hash,
+                        org_id,
+                        True,
+                        True,
+                    ),
+                )
 
             elif request_type == "update_org":
                 # Обновление данных организации
@@ -906,7 +912,7 @@ def approve_pending_request(request_id: int):
             else:
                 return jsonify({"error": "Неизвестный тип заявки"}), 400
 
-            # ✅ Обновляем статус заявки на "approved"
+            # ✅ Обновляем статус заявки
             cursor.execute("""
                 UPDATE pending_requests
                 SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
