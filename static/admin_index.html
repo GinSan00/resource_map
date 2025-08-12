@@ -754,6 +754,7 @@
         let isEditing = false;
         let categories = [];
         let pendingRequests = [];
+        let organizationAddRequests = []; 
 
         // Инициализация
         document.addEventListener('DOMContentLoaded', function() {
@@ -1115,7 +1116,7 @@ function showAdminPanel() {
             const data = await response.json();
             // Сервер возвращает массив
             organizationAddRequests = Array.isArray(data) ? data : [];
-            displayOrganizationAddRequests();
+            displayOrganizationAddRequests(organizationAddRequests); 
         } else {
             showAlert('orgAddRequestsAlert', 'Ошибка загрузки заявок', 'error');
         }
