@@ -889,47 +889,38 @@
 
         // Навигация
         function handleNavigation(e) {
-            e.preventDefault();
-            const target = e.target.getAttribute('data-target');
-            
-            // Скрыть все секции
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.add('d-none');
-            });
-            
-            // Показать нужную секцию
-            if (target) {
-                document.getElementById(`${target}Section`).classList.remove('d-none');
-            }
-            
-            // Обновить активную ссылку
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            e.target.classList.add('active');
-            
-            // Загрузить данные для секции
-            switch(target) {
-                case 'dashboard':
-                    loadDashboard();
-                    break;
-                case 'organizations':
-                    loadOrganizations(1);
-                    break;
-                case 'categories':
-                    loadCategories();
-                    break;
-                case 'pending':
-                    loadPendingRequests();
-                    break;
-                case 'org-add-requests':
-                    loadOrganizationAddRequests();
-                    break;
-                case 'owners':
-                    loadOwners();
-                    break;
-            }
-        }
+    e.preventDefault();
+    const targetLink = e.target.closest('.nav-link');
+    if (!targetLink) return;
+
+    const target = targetLink.getAttribute('data-target');
+
+    // Скрыть все секции
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.add('d-none');
+    });
+
+    // Показать нужную секцию
+    if (target) {
+        document.getElementById(`${target}Section`).classList.remove('d-none');
+    }
+
+    // Обновить активную ссылку
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    targetLink.classList.add('active');
+
+    // Загрузить данные
+    switch (target) {
+        case 'dashboard': loadDashboard(); break;
+        case 'organizations': loadOrganizations(1); break;
+        case 'categories': loadCategories(); break;
+        case 'pending': loadPendingRequests(); break;
+        case 'org-add-requests': loadOrganizationAddRequests(); break;
+        case 'owners': loadOwners(); break;
+    }
+}
 
         // Дашборд
         async function loadDashboard() {
@@ -1099,40 +1090,43 @@
 
         // Заявки на модерацию
         async function loadPendingRequests() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/pending-requests`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    pendingRequests = data.requests;
-                    displayPendingRequests();
-                }
-            } catch (error) {
-                console.error('Ошибка загрузки заявок:', error);
-            }
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/pending-requests`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            // ❗ Сервер возвращает массив, а не { requests: [...] }
+            pendingRequests = Array.isArray(data) ? data : [];
+            displayPendingRequests();
+        } else {
+            showAlert('pendingAlert', 'Ошибка загрузки заявок', 'error');
         }
+    } catch (error) {
+        console.error('Ошибка загрузки заявок:', error);
+        showAlert('pendingAlert', 'Ошибка подключения к серверу', 'error');
+    }
+}
 
         // Заявки на добавление организаций
         async function loadOrganizationAddRequests() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/organization-add-requests`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    displayOrganizationAddRequests(data.requests);
-                }
-            } catch (error) {
-                console.error('Ошибка загрузки заявок на добавление организаций:', error);
-            }
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/organization-add-requests`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            // Сервер возвращает массив
+            organizationAddRequests = Array.isArray(data) ? data : [];
+            displayOrganizationAddRequests();
+        } else {
+            showAlert('orgAddRequestsAlert', 'Ошибка загрузки заявок', 'error');
         }
+    } catch (error) {
+        console.error('Ошибка загрузки заявок на добавление организаций:', error);
+        showAlert('orgAddRequestsAlert', 'Ошибка подключения к серверу', 'error');
+    }
+}
 
         // Владельцы организаций
         async function loadOwners() {
@@ -1153,23 +1147,28 @@
         }
 
         function displayPendingRequests() {
-            const tbody = document.getElementById('pendingTable');
-            tbody.innerHTML = pendingRequests.map(request => `
-                <tr>
-                    <td>${request.id}</td>
-                    <td>${request.request_type}</td>
-                    <td>${request.owner_email}</td>
-                    <td>${request.status}</td>
-                    <td>${new Date(request.created_at).toLocaleDateString()}</td>
-                    <td>
-                        ${request.status === 'pending' ? `
-                            <button class="btn btn-success" onclick="approveRequest(${request.id})">Одобрить</button>
-                            <button class="btn btn-danger" onclick="rejectRequest(${request.id})">Отклонить</button>
-                        ` : ''}
-                    </td>
-                </tr>
-            `).join('');
-        }
+    const tbody = document.getElementById('pendingTable');
+    if (!tbody) return;
+
+    if (!Array.isArray(pendingRequests) || pendingRequests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">Нет заявок</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = pendingRequests.map(req => `
+        <tr>
+            <td>${req.id}</td>
+            <td>${req.request_type}</td>
+            <td>${req.owner_email}</td>
+            <td>${req.status}</td>
+            <td>${new Date(req.created_at).toLocaleString()}</td>
+            <td>
+                <button class="btn btn-success" onclick="approveRequest(${req.id})">Одобрить</button>
+                <button class="btn btn-danger" onclick="rejectRequest(${req.id})">Отклонить</button>
+            </td>
+        </tr>
+    `).join('');
+}
 
         function displayOrganizationAddRequests(requests) {
             const tbody = document.getElementById('orgAddRequestsTable');
