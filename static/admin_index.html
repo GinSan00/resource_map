@@ -802,39 +802,36 @@
         }
 
         async function verifyToken() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/profile`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    currentUser = data;
-                    document.getElementById('adminUsername').textContent = currentUser.email;
-                    showAdminPanel();
-                } else {
-                    localStorage.removeItem('adminToken');
-                    showLogin();
-                }
-            } catch (error) {
-                console.error('Ошибка проверки токена:', error);
-                localStorage.removeItem('adminToken');
-                showLogin();
-            }
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+            headers: {'Authorization': `Bearer ${authToken}`}
+        });
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data;
+            showAdminPanel(); // Сначала показываем панель → она сама обновит текст
+        } else {
+            localStorage.removeItem('adminToken');
+            showLogin();
         }
+    } catch (error) {
+        console.error('Ошибка проверки токена:', error);
+        localStorage.removeItem('adminToken');
+        showLogin();
+    }
+}
 
         function showLogin() {
             document.getElementById('loginContainer').classList.remove('d-none');
             document.getElementById('adminPanel').classList.add('d-none');
         }
 
-        function showAdminPanel() {
-            document.getElementById('loginContainer').classList.add('d-none');
-            document.getElementById('adminPanel').classList.remove('d-none');
-            loadDashboard();
-            loadCategories();
-        }
+function showAdminPanel() {
+    document.getElementById('loginContainer').classList.add('d-none');
+    document.getElementById('adminPanel').classList.remove('d-none');
+    // Теперь можно безопасно обновлять элемент
+    document.getElementById('adminUsername').textContent = currentUser.email;
+}
 
         // Авторизация
         async function handleLogin(e) {
