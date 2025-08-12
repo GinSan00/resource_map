@@ -222,16 +222,16 @@
         /* Модальное окно опроса */
         .modal {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.3); /* Было 0.5 — стало светлее */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
 
         .modal-content {
             background: white;
@@ -580,18 +580,21 @@
 
         // DOMContentLoaded
         document.addEventListener('DOMContentLoaded', function() {
-            loadCategories();
-            loadAllOrganizations();
-            setupSearchSuggestions();
-            openSurvey();
-            
-            // Обработчики событий
-            document.getElementById('searchInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    performSearch();
-                }
-            });
-        });
+    // Загружаем категории и организации сразу
+    loadCategories();
+    loadAllOrganizations(); // ← Это покажет все организации
+    setupSearchSuggestions();
+
+    // Показываем опрос, но НЕ блокируем контент
+    openSurvey();
+
+    // Обработчик поиска
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+});
 
     
 
