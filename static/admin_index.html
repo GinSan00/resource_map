@@ -1212,26 +1212,27 @@ function showAdminPanel() {
         }
 
         async function approveRequest(id) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/pending-requests/${id}/approve`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    showAlert('pendingAlert', 'Заявка одобрена', 'success');
-                    loadPendingRequests();
-                } else {
-                    const data = await response.json();
-                    showAlert('pendingAlert', data.error, 'error');
-                }
-            } catch (error) {
-                showAlert('pendingAlert', 'Ошибка подключения к серверу', 'error');
-            }
-        }
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/pending-requests/${id}/approve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({}) // ← Добавьте пустое тело
+    });
+
+    if (response.ok) {
+      showAlert('pendingAlert', 'Заявка одобрена', 'success');
+      loadPendingRequests();
+    } else {
+      const data = await response.json();
+      showAlert('pendingAlert', data.error, 'error');
+    }
+  } catch (error) {
+    showAlert('pendingAlert', 'Ошибка подключения к серверу', 'error');
+  }
+}
 
         async function rejectRequest(id) {
             try {
