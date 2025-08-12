@@ -875,65 +875,38 @@ def reject_organization_add_request(request_id: int):
 @app.route("/api/admin/pending-requests/<int:request_id>/approve", methods=["POST"])
 @require_auth
 def approve_pending_request(request_id: int):
-    """Одобрение заявки"""
     try:
         admin_id = request.current_admin["user_id"]
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(
-                "SELECT id, request_type, data, owner_email FROM pending_requests WHERE id = %s AND status = 'pending'",
-                (request_id,),
-            )
+            cursor.execute("SELECT id, request_type, data, owner_email FROM pending_requests WHERE id = %s AND status = 'pending'",
+                          (request_id,))
             request_data = cursor.fetchone()
             if not request_data:
                 return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
 
-            request_type = request_data["request_type"]
-            data = request_data["data"]
+            # ✅ Парсим JSON вручную
+            owner_data = json.loads(request_data["data"])  # <-- Исправление
 
-            if request_type == "new_org":
-                # Создание новой организации
-                text_for_embedding = generate_embedding_text(
-                    name=data["organization_name"],
-                    description=data.get("description", ""),
-                    services=data.get("services", ""),
-                    address=data.get("address", ""),
-                    tags=data.get("tags", []),
-                    main_service=data.get("main_service", ""),
-                )
-                embedding = generate_embedding(text_for_embedding)
+            if request_data["request_type"] == "create_owner":
+                full_name = owner_data["full_name"]
+                email = owner_data["email"]
+                password_hash = owner_data["password_hash"]
+                organization_id = owner_data.get("organization_id")
 
-                cursor.execute(
-                    """
-                    INSERT INTO organizations (
-                        name, main_service, category_id, description, address,
-                        phone, email, website, services, tags,
-                        contact_person_name, contact_person_role,
-                        contact_person_phone, contact_person_email,
-                        contact_person_photo_url, embedding
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                    """,
-                    (
-                        data["organization_name"],
-                        data.get("main_service"),
-                        data["category_id"],
-                        data["description"],
-                        data["address"],
-                        data.get("phone"),
-                        data.get("email"),
-                        data.get("website"),
-                        data.get("services"),
-                        data.get("tags"),
-                        data.get("contact_person_name"),
-                        data.get("contact_person_role"),
-                        data.get("contact_person_phone"),
-                        data.get("contact_person_email"),
-                        data.get("contact_person_photo_url"),
-                        embedding,
-                    ),
-                )
-                new_org_id = cursor.fetchone()[0]
+                cursor.execute("""INSERT INTO organization_owners (full_name, email, password_hash, organization_id)
+                                  VALUES (%s, %s, %s, %s) RETURNING id""",
+                               (full_name, email, password_hash, organization_id))
+                new_owner_id = cursor.fetchone()["id"]
+
+                cursor.execute("""UPDATE pending_requests
+                                  SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
+                                  WHERE id = %s""",
+                               (admin_id, request_id))
+
+                conn.commit()
+                return jsonify({"message": "Заявка одобрена"})
+
 
                 # Создание владельца
                 password_hash = bcrypt.hashpw(
@@ -1058,7 +1031,7 @@ def approve_pending_request(request_id: int):
 
     except Exception as e:
         print(f"Ошибка одобрения заявки: {e}")
-        traceback.print_exc()
+        traceback.print_exc()  # Покажет точную строку с ошибкой
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
