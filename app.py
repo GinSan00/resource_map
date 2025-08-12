@@ -1263,78 +1263,44 @@ def owner_login():
 
 @app.route("/api/owner/claim", methods=["POST"])
 def claim_organization():
-    """Привязка к существующей организации"""
-    try:
-        data = request.get_json()
+    data = request.get_json()
+    email = data.get("email", "").lower()
 
-        required_fields = [
-            "full_name",
-            "email",
-            "password",
-            "organization_name",
-            "category_id",
-        ]
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({"error": f"Поле {field} обязательно"}), 400
+    # Проверка email
+    if "@" not in email or "." not in email:
+        return jsonify({"error": "Некорректный email"}), 400
 
-        email = data["email"].lower()
-        if "@" not in email or "." not in email:
-            return jsonify({"error": "Некорректный email адрес"}), 400
+    conn = db_manager.get_connection()
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        # Поиск организации по названию
+        cursor.execute("SELECT id, name FROM organizations WHERE name = %s", (data["organization_name"],))
+        org_result = cursor.fetchone()
 
-        conn = db_manager.get_connection()
-        with conn.cursor() as cursor:
-            # Проверка существования организации
-            cursor.execute(
-                "SELECT id FROM organizations WHERE name = %s",
-                (data["organization_name"],),
-            )
-            org = cursor.fetchone()
-            if not org:
-                return jsonify({"error": "Организация не найдена"}), 400
+        if not org_result:
+            return jsonify({"error": "Организация не найдена. Обратитесь к администратору или подайте заявку на добавление."}), 404
 
-            # Проверка, не привязан ли уже владелец
-            cursor.execute(
-                "SELECT id FROM organization_owners WHERE email = %s", (email,)
-            )
-            if cursor.fetchone():
-                return jsonify({"error": "Владелец с таким email уже существует"}), 400
+        # Проверка, не существует ли уже владелец
+        cursor.execute("SELECT id FROM organization_owners WHERE email = %s", (email,))
+        if cursor.fetchone():
+            return jsonify({"error": "Владелец с таким email уже существует"}), 400
 
-            # Создаём заявку на модерацию
-            pending_data = {
-                "full_name": data["full_name"],
-                "email": email,
-                "phone": data.get("phone"),
-                "password": data["password"],
-                "org_id": org["id"],
-                "organization_name": data["organization_name"],
-                "category_id": data["category_id"],
-                "description": data.get("description"),
-                "address": data.get("address"),
-                "services": data.get("services"),
-                "tags": data.get("tags"),
-                "main_service": data.get("main_service"),
-                "contact_person_name": data.get("contact_person_name"),
-                "contact_person_phone": data.get("contact_person_phone"),
-                "contact_person_email": data.get("contact_person_email"),
-                "contact_person_photo_url": data.get("contact_person_photo_url"),
-            }
+        # Создаём заявку на привязку (claim_org)
+        pending_data = {
+            "full_name": data["full_name"],
+            "email": email,
+            "phone": data.get("phone"),
+            "password": data["password"],
+            "org_id": org_result["id"],
+            "organization_name": data["organization_name"]
+        }
 
-            cursor.execute(
-                """
-                INSERT INTO pending_requests (request_type, data, owner_email)
-                VALUES ('claim_org', %s, %s)
-                """,
-                (psycopg2.extras.Json(pending_data), email),
-            )
-            conn.commit()
-
-            return jsonify(
-                {"message": "Запрос на привязку отправлен на модерацию"}
-            ), 201
-    except Exception as e:
-        print(f"Ошибка привязки к организации: {e}")
-        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+        cursor.execute(
+            """INSERT INTO pending_requests (request_type, data, owner_email)
+               VALUES ('claim_org', %s, %s)""",
+            (psycopg2.extras.Json(pending_data), email)
+        )
+        conn.commit()
+        return jsonify({"message": "Запрос на привязку отправлен на модерацию"}), 201
 
 
 @app.route("/api/organizations/add-request", methods=["POST"])
@@ -1846,7 +1812,7 @@ def create_test_organizations():
         {
             "name": "Танцевальная школа «Ритм»",
             "main_service": "Занятия по хип-хопу",
-            "category_id": 10,
+            "category_id": 1,
             "description": "Танцы для детей и взрослых: хип-хоп, брейк-данс, contemporary.",
             "address": "г. Тюмень, ул. Широтная, 55",
             "phone": "+7 (3452) 404-44-55",
@@ -1863,7 +1829,7 @@ def create_test_organizations():
         {
             "name": "Клининговая компания «Чистота»",
             "main_service": "Уборка квартир",
-            "category_id": 11,
+            "category_id": 1,
             "description": "Профессиональная уборка квартир, офисов, после ремонта.",
             "address": "г. Тюмень, ул. Газовиков, 10",
             "phone": "+7 (3452) 505-55-66",
@@ -1897,7 +1863,7 @@ def create_test_organizations():
         {
             "name": "Магазин электроники «ТехноМир»",
             "main_service": "Продажа смартфонов",
-            "category_id": 12,
+            "category_id": 2,
             "description": "Широкий ассортимент техники: телефоны, ноутбуки, аксессуары.",
             "address": "г. Тюмень, ул. Республики, 120",
             "phone": "+7 (3452) 707-77-88",
@@ -1914,7 +1880,7 @@ def create_test_organizations():
         {
             "name": "Студия дизайна интерьера «Пространство»",
             "main_service": "Разработка дизайн-проекта",
-            "category_id": 13,
+            "category_id": 3,
             "description": "Дизайн квартир, домов, офисов. Авторский надзор, 3D-визуализация.",
             "address": "г. Тюмень, ул. Харьковская, 70",
             "phone": "+7 (3452) 808-88-99",
@@ -1931,7 +1897,7 @@ def create_test_organizations():
         {
             "name": "Агентство недвижимости «Ключ»",
             "main_service": "Продажа квартир",
-            "category_id": 14,
+            "category_id": 4,
             "description": "Помощь в покупке, продаже и аренде жилья и коммерческой недвижимости.",
             "address": "г. Тюмень, ул. Ленина, 75",
             "phone": "+7 (3452) 909-99-00",
