@@ -1672,7 +1672,7 @@ def create_test_organizations():
             "contact_person_email": "petrova@tyumen.gov.ru",
             "contact_person_photo_url": "https://example.com/photos/petrova.jpg",
         },
-        # ... остальные 28 организаций (сокращено для краткости)
+
     ]
 
     try:
@@ -1701,7 +1701,7 @@ def create_test_organizations():
                     ) SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     WHERE NOT EXISTS (
                         SELECT 1 FROM organizations WHERE name = %s
-                    )
+                    );
                     """,
                     (
                         org["name"],
@@ -1720,9 +1720,10 @@ def create_test_organizations():
                         org.get("contact_person_email"),
                         org.get("contact_person_photo_url"),
                         embedding,
-                        org["name"],
-                    ),
+                        org["name"]  # для условия NOT EXISTS
+                    )
                 )
+
                 print(f"✅ Организация добавлена: {org['name']}")
         conn.commit()
         print("✅ Все 30 тестовых организаций добавлены (или уже существуют).")
