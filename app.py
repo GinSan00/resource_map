@@ -1963,7 +1963,7 @@ def create_test_organizations():
             "contact_person_photo_url": "https://example.com/photos/kotov.jpg"
         }
     ]
-
+ 
     try:
         conn = db_manager.get_connection()
         with conn.cursor() as cursor:
