@@ -236,16 +236,25 @@ def semantic_search():
 
 @app.route("/api/categories", methods=["GET"])
 def get_categories():
-    """Получение всех категорий"""
+    """Получение всех категорий с количеством организаций"""
     try:
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute("SELECT id, name FROM categories ORDER BY name")
+            cursor.execute("""
+                SELECT 
+                    c.id, 
+                    c.name,
+                    COUNT(o.id) AS organization_count
+                FROM categories c
+                LEFT JOIN organizations o ON c.id = o.category_id
+                GROUP BY c.id, c.name
+                ORDER BY c.name
+            """)
             categories = cursor.fetchall()
-            return jsonify([dict(cat) for cat in categories])
+            return jsonify({"categories": [dict(cat) for cat in categories]})
     except Exception as e:
-        print(f"Ошибка получения категорий: {e}")
-        return jsonify([]), 500
+        print(f"Ошибка загрузки категорий: {e}")
+        return jsonify({"error": "Не удалось загрузить категории"}), 500
 
 
 @app.route("/api/admin/categories", methods=["GET"])
@@ -1129,48 +1138,86 @@ def get_owners():
 # ===============================
 @app.route("/api/owner/register", methods=["POST"])
 def register_owner():
-    data = request.get_json()
-    required_fields = ["full_name", "email", "password", "organization_name"]
-    for field in required_fields:
-        if not data.get(field):
-            return jsonify({"error": f"Поле {field} обязательно"}), 400
+    """Регистрация владельца (создание или привязка)"""
+    try:
+        data = request.get_json()
 
-    email = data["email"].lower()
-    if "@" not in email or "." not in email:
-        return jsonify({"error": "Некорректный email"}), 400
+        required_fields = ["full_name", "email", "password", "organization_name"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Поле {field} обязательно"}), 400
 
-    conn = db_manager.get_connection()
-    with conn.cursor() as cursor:
-        # Поиск организации
-        cursor.execute("SELECT id FROM organizations WHERE name = %s", (data["organization_name"],))
-        org_result = cursor.fetchone()
+        if len(data["password"]) < 6:
+            return jsonify({"error": "Пароль должен быть не менее 6 символов"}), 400
 
-        if not org_result:
-            return jsonify({
-                "error": "Организация не найдена. Чтобы добавить новую, используйте форму 'Добавить организацию'"
-            }), 404
+        email = data["email"].lower()
+        if "@" not in email or "." not in email:
+            return jsonify({"error": "Некорректный email адрес"}), 400
 
-        # Проверка, не существует ли уже владелец
-        cursor.execute("SELECT id FROM organization_owners WHERE email = %s", (email,))
-        if cursor.fetchone():
-            return jsonify({"error": "Владелец с таким email уже существует"}), 400
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Проверка существования владельца
+            cursor.execute(
+                "SELECT id, is_verified FROM organization_owners WHERE email = %s",
+                (email,),
+            )
+            existing_owner = cursor.fetchone()
+            if existing_owner:
+                if existing_owner["is_verified"]:
+                    return jsonify(
+                        {"error": "Владелец с таким email уже существует"}
+                    ), 400
+                # Можно обновить данные, если не подтверждён
 
-        # Создаём заявку на привязку
-        pending_data = {
-            "full_name": data["full_name"],
-            "email": email,
-            "phone": data.get("phone"),
-            "password": data["password"],
-            "organization_name": data["organization_name"]
-        }
+            # Проверка существования организации
+            cursor.execute(
+                "SELECT id, name FROM organizations WHERE name = %s",
+                (data["organization_name"],),
+            )
+            org_result = cursor.fetchone()
 
-        cursor.execute(
-            """INSERT INTO pending_requests (request_type, data, owner_email)
-               VALUES ('claim_org', %s, %s)""",
-            (psycopg2.extras.Json(pending_data), email)
-        )
-        conn.commit()
-        return jsonify({"message": "Запрос на привязку отправлен на модерацию"}), 201
+            request_type = "claim_org" if org_result else "new_org"
+            pending_data = {
+                "full_name": data["full_name"],
+                "email": email,
+                "phone": data.get("phone"),
+                "password": data["password"],
+                "organization_name": data["organization_name"],
+            }
+
+            if request_type == "claim_org":
+                pending_data["org_id"] = org_result["id"]
+                pending_data["category_id"] = data.get("category_id")
+                pending_data["description"] = data.get("description")
+                pending_data["address"] = data.get("address")
+                pending_data["services"] = data.get("services")
+                pending_data["tags"] = data.get("tags")
+                pending_data["main_service"] = data.get("main_service")
+                pending_data["contact_person_name"] = data.get("contact_person_name")
+                pending_data["contact_person_phone"] = data.get("contact_person_phone")
+                pending_data["contact_person_email"] = data.get("contact_person_email")
+                pending_data["contact_person_photo_url"] = data.get(
+                    "contact_person_photo_url"
+                )
+
+            # Создаём запрос на модерацию
+            cursor.execute(
+                """
+                INSERT INTO pending_requests (request_type, data, owner_email)
+                VALUES (%s, %s, %s)
+                """,
+                (request_type, psycopg2.extras.Json(pending_data), email),
+            )
+            conn.commit()
+
+            return jsonify(
+                {
+                    "message": "Регистрация успешна. Запрос на создание организации отправлен на модерацию.",
+                }
+            ), 201
+    except Exception as e:
+        print(f"Ошибка регистрации владельца: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
 @app.route("/api/owner/login", methods=["POST"])
@@ -1267,30 +1314,67 @@ def claim_organization():
 
 @app.route("/api/organizations/add-request", methods=["POST"])
 def create_organization_add_request():
-    data = request.get_json()
-    required_fields = ["organization_name", "category_id", "description", "address"]
-    for field in required_fields:
-        if not data.get(field):
-            return jsonify({"error": f"Поле {field} обязательно"}), 400
+    """Создание заявки на добавление организации"""
+    try:
+        data = request.get_json()
 
-    conn = db_manager.get_connection()
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """INSERT INTO organization_add_requests (organization_name, category_id, description, address, 
-                                                     services, tags, contact_person_name, contact_person_role, 
-                                                     contact_person_phone, contact_person_email, contact_person_photo_url, 
-                                                     requester_name, requester_email, requester_phone)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (
-                data["organization_name"], data["category_id"], data["description"], data["address"],
-                data.get("services"), data.get("tags"), data.get("contact_person_name"),
-                data.get("contact_person_role"), data.get("contact_person_phone"),
-                data.get("contact_person_email"), data.get("contact_person_photo_url"),
-                data["requester_name"], data["requester_email"], data["requester_phone"]
+        required_fields = ["organization_name", "category_id", "description", "requester_name", "requester_email"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Поле {field} обязательно"}), 400
+
+        email = data["requester_email"].lower()
+        if "@" not in email or "." not in email:
+            return jsonify({"error": "Некорректный email адрес"}), 400
+
+        conn = db_manager.get_connection()
+        with conn.cursor() as cursor:
+            # Проверка существования организации
+            cursor.execute(
+                "SELECT id FROM organizations WHERE name = %s",
+                (data["organization_name"],),
             )
-        )
-        conn.commit()
-        return jsonify({"message": "Заявка на добавление организации отправлена на модерацию"}), 201
+            if cursor.fetchone():
+                return jsonify({"error": "Организация с таким названием уже существует"}), 400
+
+            # Создаём заявку на добавление
+            cursor.execute(
+                """
+                INSERT INTO organization_add_requests (
+                    organization_name, category_id, description, address, phone, email,
+                    website, services, tags, contact_person_name, contact_person_role,
+                    contact_person_phone, contact_person_email, contact_person_photo_url,
+                    requester_name, requester_email, requester_phone
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    data["organization_name"],
+                    data["category_id"],
+                    data["description"],
+                    data.get("address"),
+                    data.get("phone"),
+                    data.get("email"),
+                    data.get("website"),
+                    data.get("services"),
+                    data.get("tags"),
+                    data.get("contact_person_name"),
+                    data.get("contact_person_role"),
+                    data.get("contact_person_phone"),
+                    data.get("contact_person_email"),
+                    data.get("contact_person_photo_url"),
+                    data["requester_name"],
+                    email,
+                    data.get("requester_phone"),
+                ),
+            )
+            conn.commit()
+
+            return jsonify(
+                {"message": "Заявка на добавление организации отправлена на модерацию"}
+            ), 201
+    except Exception as e:
+        print(f"Ошибка создания заявки на добавление организации: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
 @app.route("/api/owner/organizations", methods=["PUT"])
