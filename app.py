@@ -911,14 +911,6 @@ def approve_pending_request(request_id: int):
                 conn.commit()
                 return jsonify({"message": "Заявка одобрена"})
 
-            # Другие типы заявок (например, update_org, claim_org) — обрабатываются аналогично
-            elif request_data["request_type"] == "claim_org":
-                # Логика для привязки владельца к существующей организации
-                pass
-            elif request_data["request_type"] == "update_org":
-                # Логика для обновления данных организации
-                pass
-
             conn.commit()
             return jsonify({"message": "Заявка одобрена"})
 
