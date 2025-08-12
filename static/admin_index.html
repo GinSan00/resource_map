@@ -810,8 +810,8 @@
                 });
                 if (response.ok) {
                     const data = await response.json();
-                    currentUser = data.admin;
-                    document.getElementById('adminUsername').textContent = currentUser.username;
+                    currentUser = data;
+                    document.getElementById('adminUsername').textContent = currentUser.email;
                     showAdminPanel();
                 } else {
                     localStorage.removeItem('adminToken');
@@ -954,6 +954,13 @@
                             <td>${new Date(org.created_at).toLocaleDateString()}</td>
                         </tr>`
                     ).join('');
+                } else {
+                    console.error('Ошибка загрузки дашборда:', response.status, response.statusText);
+                    if (response.status === 401) {
+                        // Токен недействителен, перенаправить на логин
+                        localStorage.removeItem('adminToken');
+                        showLogin();
+                    }
                 }
             } catch (error) {
                 console.error('Ошибка загрузки дашборда:', error);
@@ -1043,6 +1050,13 @@
                     categories = data.categories;
                     displayCategories();
                     updateCategorySelects();
+                } else {
+                    console.error('Ошибка загрузки категорий:', response.status, response.statusText);
+                    if (response.status === 401) {
+                        // Токен недействителен, перенаправить на логин
+                        localStorage.removeItem('adminToken');
+                        showLogin();
+                    }
                 }
             } catch (error) {
                 console.error('Ошибка загрузки категорий:', error);

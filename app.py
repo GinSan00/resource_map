@@ -291,10 +291,10 @@ def get_organizations():
                 """
             )
             organizations = cursor.fetchall()
-            return jsonify([dict(org) for org in organizations])
+            return jsonify({"organizations": [dict(org) for org in organizations]})
     except Exception as e:
         print(f"Ошибка получения организаций: {e}")
-        return jsonify([]), 500
+        return jsonify({"organizations": []}), 500
 
 
 @app.route("/api/organizations/<int:org_id>", methods=["GET"])
