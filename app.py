@@ -48,7 +48,7 @@ class DatabaseManager:
                 port=os.getenv("DB_PORT", "5432"),
                 database=os.getenv("DB_NAME", "resource_map"),
                 user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", "postgres"),
+                password=os.getenv("DB_PASSWORD", "1234"),
             )
             print("✅ Пул соединений с PostgreSQL инициализирован")
         except Exception as e:
