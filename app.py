@@ -879,14 +879,16 @@ def approve_pending_request(request_id: int):
         admin_id = request.current_admin["user_id"]
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute("SELECT id, request_type, data, owner_email FROM pending_requests WHERE id = %s AND status = 'pending'",
-                          (request_id,))
+            cursor.execute(
+                "SELECT id, request_type, data, owner_email FROM pending_requests WHERE id = %s AND status = 'pending'",
+                (request_id,)
+            )
             request_data = cursor.fetchone()
             if not request_data:
                 return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
 
-            # ✅ Парсим JSON вручную
-            owner_data = json.loads(request_data["data"])  # <-- Исправление
+            # ✅ УБРАЛИ json.loads() — данные уже dict
+            owner_data = request_data["data"]  # Это уже словарь!
 
             if request_data["request_type"] == "create_owner":
                 full_name = owner_data["full_name"]
@@ -894,19 +896,31 @@ def approve_pending_request(request_id: int):
                 password_hash = owner_data["password_hash"]
                 organization_id = owner_data.get("organization_id")
 
-                cursor.execute("""INSERT INTO organization_owners (full_name, email, password_hash, organization_id)
-                                  VALUES (%s, %s, %s, %s) RETURNING id""",
-                               (full_name, email, password_hash, organization_id))
+                cursor.execute("""
+                    INSERT INTO organization_owners (full_name, email, password_hash, organization_id)
+                    VALUES (%s, %s, %s, %s) RETURNING id
+                """, (full_name, email, password_hash, organization_id))
                 new_owner_id = cursor.fetchone()["id"]
 
-                cursor.execute("""UPDATE pending_requests
-                                  SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
-                                  WHERE id = %s""",
-                               (admin_id, request_id))
+                cursor.execute("""
+                    UPDATE pending_requests
+                    SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
+                    WHERE id = %s
+                """, (admin_id, request_id))
 
                 conn.commit()
                 return jsonify({"message": "Заявка одобрена"})
 
+            # Другие типы заявок (например, update_org, claim_org) — обрабатываются аналогично
+            elif request_data["request_type"] == "claim_org":
+                # Логика для привязки владельца к существующей организации
+                pass
+            elif request_data["request_type"] == "update_org":
+                # Логика для обновления данных организации
+                pass
+
+            conn.commit()
+            return jsonify({"message": "Заявка одобрена"})
 
                 # Создание владельца
                 password_hash = bcrypt.hashpw(
