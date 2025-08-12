@@ -1490,7 +1490,7 @@ def create_tables():
                     contact_person_phone VARCHAR(100),
                     contact_person_email VARCHAR(255),
                     contact_person_photo_url TEXT,
-                    embedding VECTOR(384),
+                    embedding VECTOR(1024),
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
