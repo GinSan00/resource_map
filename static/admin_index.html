@@ -304,6 +304,28 @@
             border: 1px solid #c3e6cb;
         }
 
+        .badge {
+            display: inline-block;
+            padding: 0.25em 0.6em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+        }
+
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .badge-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
         /* Модальные окна */
         .modal {
             position: fixed;
@@ -407,8 +429,8 @@
             <h2>Вход в панель администратора</h2>
             <div id="loginAlert" class="alert alert-error d-none"></div>
             <div class="form-group">
-                <label for="username">Имя пользователя или Email</label>
-                <input type="text" id="username" name="username" required>
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
             </div>
             <div class="form-group">
                 <label for="password">Пароль</label>
@@ -427,7 +449,9 @@
                 <li><a href="#" class="nav-link active" data-target="dashboard">Дашборд</a></li>
                 <li><a href="#" class="nav-link" data-target="organizations">Организации</a></li>
                 <li><a href="#" class="nav-link" data-target="categories">Категории</a></li>
-                <li><a href="#" class="nav-link" data-target="pending">Заявки</a></li>
+                <li><a href="#" class="nav-link" data-target="pending">Заявки владельцев</a></li>
+                <li><a href="#" class="nav-link" data-target="org-add-requests">Заявки на добавление</a></li>
+                <li><a href="#" class="nav-link" data-target="owners">Владельцы</a></li>
                 <li><a href="#" id="logoutBtn">Выход</a></li>
             </ul>
         </nav>
@@ -555,6 +579,50 @@
                         </tr>
                     </thead>
                     <tbody id="pendingTable">
+                        <!-- Будет заполнено динамически -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Заявки на добавление организаций -->
+            <section id="orgAddRequestsSection" class="content-section d-none">
+                <h2>Заявки на добавление организаций</h2>
+                <div id="orgAddRequestsAlert" class="alert d-none"></div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название организации</th>
+                            <th>Категория</th>
+                            <th>Заявитель</th>
+                            <th>Статус</th>
+                            <th>Дата</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orgAddRequestsTable">
+                        <!-- Будет заполнено динамически -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Владельцы -->
+            <section id="ownersSection" class="content-section d-none">
+                <h2>Владельцы организаций</h2>
+                <div id="ownersAlert" class="alert d-none"></div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ФИО</th>
+                            <th>Email</th>
+                            <th>Организация</th>
+                            <th>Статус</th>
+                            <th>Дата регистрации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ownersTable">
                         <!-- Будет заполнено динамически -->
                     </tbody>
                 </table>
@@ -771,10 +839,10 @@
         // Авторизация
         async function handleLogin(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             
-            if (!username || !password) {
+            if (!email || !password) {
                 showAlert('loginAlert', 'Заполните все поля', 'error');
                 return;
             }
@@ -785,7 +853,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ email, password })
                 });
                 
                 const data = await response.json();
@@ -853,6 +921,12 @@
                     break;
                 case 'pending':
                     loadPendingRequests();
+                    break;
+                case 'org-add-requests':
+                    loadOrganizationAddRequests();
+                    break;
+                case 'owners':
+                    loadOwners();
                     break;
             }
         }
@@ -1028,6 +1102,42 @@
             }
         }
 
+        // Заявки на добавление организаций
+        async function loadOrganizationAddRequests() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/organization-add-requests`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayOrganizationAddRequests(data.requests);
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки заявок на добавление организаций:', error);
+            }
+        }
+
+        // Владельцы организаций
+        async function loadOwners() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/owners`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayOwners(data.owners);
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки владельцев:', error);
+            }
+        }
+
         function displayPendingRequests() {
             const tbody = document.getElementById('pendingTable');
             tbody.innerHTML = pendingRequests.map(request => `
@@ -1041,6 +1151,49 @@
                         ${request.status === 'pending' ? `
                             <button class="btn btn-success" onclick="approveRequest(${request.id})">Одобрить</button>
                             <button class="btn btn-danger" onclick="rejectRequest(${request.id})">Отклонить</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function displayOrganizationAddRequests(requests) {
+            const tbody = document.getElementById('orgAddRequestsTable');
+            tbody.innerHTML = requests.map(request => `
+                <tr>
+                    <td>${request.id}</td>
+                    <td>${request.organization_name}</td>
+                    <td>${request.category_name || 'Не указана'}</td>
+                    <td>${request.requester_name}<br><small>${request.requester_email}</small></td>
+                    <td>${request.status}</td>
+                    <td>${new Date(request.created_at).toLocaleDateString()}</td>
+                    <td>
+                        ${request.status === 'pending' ? `
+                            <button class="btn btn-success" onclick="approveOrgAddRequest(${request.id})">Одобрить</button>
+                            <button class="btn btn-danger" onclick="rejectOrgAddRequest(${request.id})">Отклонить</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function displayOwners(owners) {
+            const tbody = document.getElementById('ownersTable');
+            tbody.innerHTML = owners.map(owner => `
+                <tr>
+                    <td>${owner.id}</td>
+                    <td>${owner.full_name}</td>
+                    <td>${owner.email}</td>
+                    <td>${owner.organization_name || 'Не указана'}</td>
+                    <td>
+                        <span class="badge ${owner.is_active ? 'badge-success' : 'badge-danger'}">
+                            ${owner.is_active ? 'Активен' : 'Неактивен'}
+                        </span>
+                    </td>
+                    <td>${new Date(owner.created_at).toLocaleDateString()}</td>
+                    <td>
+                        ${owner.is_active ? `
+                            <button class="btn btn-danger" onclick="deactivateOwner(${owner.id})">Деактивировать</button>
                         ` : ''}
                     </td>
                 </tr>
@@ -1088,6 +1241,74 @@
                 }
             } catch (error) {
                 showAlert('pendingAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        async function approveOrgAddRequest(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/organization-add-requests/${id}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    showAlert('orgAddRequestsAlert', 'Заявка одобрена, организация создана', 'success');
+                    loadOrganizationAddRequests();
+                } else {
+                    const data = await response.json();
+                    showAlert('orgAddRequestsAlert', data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('orgAddRequestsAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        async function rejectOrgAddRequest(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/organization-add-requests/${id}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    showAlert('orgAddRequestsAlert', 'Заявка отклонена', 'success');
+                    loadOrganizationAddRequests();
+                } else {
+                    const data = await response.json();
+                    showAlert('orgAddRequestsAlert', data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('orgAddRequestsAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        }
+
+        async function deactivateOwner(id) {
+            if (confirm('Вы уверены, что хотите деактивировать этого владельца?')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/admin/owners/${id}/deactivate`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('ownersAlert', 'Владелец деактивирован', 'success');
+                        loadOwners();
+                    } else {
+                        const data = await response.json();
+                        showAlert('ownersAlert', data.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('ownersAlert', 'Ошибка подключения к серверу', 'error');
+                }
             }
         }
 

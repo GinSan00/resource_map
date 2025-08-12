@@ -127,8 +127,9 @@ def require_auth(f):
         if not token or not token.startswith("Bearer "):
             return jsonify({"error": "Токен не предоставлен"}), 401
         token = token.split(" ")[1]
-        payload = verify_jwt_token(token);
-        return jsonify({"error": "Неверный или истекший токен"}), 401
+        payload = verify_jwt_token(token)
+        if not payload:
+            return jsonify({"error": "Неверный или истекший токен"}), 401
         request.current_admin = payload
         return f(*args, **kwargs)
 
@@ -247,6 +248,29 @@ def get_categories():
         return jsonify([]), 500
 
 
+@app.route("/api/admin/categories", methods=["GET"])
+@require_auth
+def get_admin_categories():
+    """Получение категорий для администратора с количеством организаций"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""
+                SELECT c.id, c.name, COUNT(o.id) as organization_count
+                FROM categories c
+                LEFT JOIN organizations o ON c.id = o.category_id
+                GROUP BY c.id, c.name
+                ORDER BY c.name
+            """)
+            categories = cursor.fetchall()
+            return jsonify({
+                "categories": [dict(cat) for cat in categories]
+            })
+    except Exception as e:
+        print(f"Ошибка получения категорий для админа: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
 @app.route("/api/organizations", methods=["GET"])
 def get_organizations():
     """Получение всех организаций"""
@@ -290,7 +314,7 @@ def get_organization(org_id):
                     c.name as category_name, c.id as category_id
                 FROM organizations o
                 JOIN categories c ON o.category_id = c.id
-                WHERE o.id = %s
+                    WHERE o.id = %s
                 """,
                 (org_id,),
             )
@@ -300,6 +324,42 @@ def get_organization(org_id):
             return jsonify(dict(org))
     except Exception as e:
         print(f"Ошибка получения организации: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
+@app.route("/api/admin/organizations/<int:org_id>", methods=["GET"])
+@require_auth
+def get_admin_organization(org_id):
+    """Получение одной организации для администратора"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT 
+                    o.id, o.name, o.main_service, o.description, o.address,
+                    o.phone, o.email, o.website, o.services, o.tags,
+                    o.contact_person_name, o.contact_person_role,
+                    o.contact_person_phone, o.contact_person_email,
+                    o.contact_person_photo_url, o.created_at, o.updated_at,
+                    c.name as category_name, c.id as category_id
+                FROM organizations o
+                JOIN categories c ON o.category_id = c.id
+                WHERE o.id = %s
+                """,
+                (org_id,),
+            )
+            org = cursor.fetchone()
+            if not org:
+                return jsonify({"error": "Организация не найдена"}), 404
+            
+            org_dict = dict(org)
+            org_dict["tags"] = org["tags"] if org["tags"] else []
+            org_dict["is_active"] = True  # Все организации активны по умолчанию
+            
+            return jsonify({"organization": org_dict})
+    except Exception as e:
+        print(f"Ошибка получения организации для админа: {e}")
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
@@ -367,9 +427,128 @@ def admin_profile():
     )
 
 
+@app.route("/api/admin/stats", methods=["GET"])
+@require_auth
+def admin_stats():
+    """Получение статистики для дашборда"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Общая статистика
+            cursor.execute("SELECT COUNT(*) as total FROM organizations")
+            total_orgs = cursor.fetchone()["total"]
+            
+            cursor.execute("SELECT COUNT(*) as total FROM categories")
+            total_cats = cursor.fetchone()["total"]
+            
+            # Последние организации
+            cursor.execute("""
+                SELECT o.name, c.name as category, o.created_at
+                FROM organizations o
+                JOIN categories c ON o.category_id = c.id
+                ORDER BY o.created_at DESC
+                LIMIT 5
+            """)
+            recent_orgs = cursor.fetchall()
+            
+            return jsonify({
+                "stats": {
+                    "total_organizations": total_orgs,
+                    "active_organizations": total_orgs,  # Все организации активны по умолчанию
+                    "inactive_organizations": 0,
+                    "total_categories": total_cats
+                },
+                "recent_organizations": [
+                    {
+                        "name": org["name"],
+                        "category": org["category"],
+                        "created_at": org["created_at"].isoformat() if org["created_at"] else None
+                    }
+                    for org in recent_orgs
+                ]
+            })
+    except Exception as e:
+        print(f"Ошибка получения статистики: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
 # ===============================
 # АДМИН: ОРГАНИЗАЦИИ
 # ===============================
+@app.route("/api/admin/organizations", methods=["GET"])
+@require_auth
+def get_admin_organizations():
+    """Получение организаций для администратора с пагинацией"""
+    try:
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 20))
+        search = request.args.get("search", "").strip()
+        category_id = request.args.get("category_id", "")
+        status = request.args.get("status", "all")
+        
+        offset = (page - 1) * limit
+        
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            # Базовый запрос
+            base_query = """
+                FROM organizations o
+                JOIN categories c ON o.category_id = c.id
+                WHERE 1=1
+            """
+            params = []
+            
+            # Поиск по названию
+            if search:
+                base_query += " AND o.name ILIKE %s"
+                params.append(f"%{search}%")
+            
+            # Фильтр по категории
+            if category_id:
+                base_query += " AND o.category_id = %s"
+                params.append(category_id)
+            
+            # Подсчет общего количества
+            count_query = f"SELECT COUNT(*) as total {base_query}"
+            cursor.execute(count_query, params)
+            total = cursor.fetchone()["total"]
+            
+            # Получение организаций
+            orgs_query = f"""
+                SELECT 
+                    o.id, o.name, o.main_service, o.description, o.address,
+                    o.phone, o.email, o.website, o.services, o.tags,
+                    o.contact_person_name, o.contact_person_role,
+                    o.contact_person_phone, o.contact_person_email,
+                    o.contact_person_photo_url, o.created_at, o.updated_at,
+                    c.name as category, c.id as category_id
+                {base_query}
+                ORDER BY o.name
+                LIMIT %s OFFSET %s
+            """
+            cursor.execute(orgs_query, params + [limit, offset])
+            organizations = cursor.fetchall()
+            
+            # Преобразование в словари
+            orgs_list = []
+            for org in organizations:
+                org_dict = dict(org)
+                org_dict["tags"] = org["tags"] if org["tags"] else []
+                orgs_list.append(org_dict)
+            
+            pages = (total + limit - 1) // limit
+            
+            return jsonify({
+                "organizations": orgs_list,
+                "total": total,
+                "pages": pages,
+                "current_page": page
+            })
+    except Exception as e:
+        print(f"Ошибка получения организаций: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
 @app.route("/api/admin/organizations", methods=["POST"])
 @require_auth
 def create_organization():
@@ -553,6 +732,137 @@ def get_pending_requests():
         return jsonify([]), 500
 
 
+@app.route("/api/admin/organization-add-requests", methods=["GET"])
+@require_auth
+def get_organization_add_requests():
+    """Получение заявок на добавление организаций"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT 
+                    oar.id, oar.organization_name, oar.description, oar.address,
+                    oar.phone, oar.email, oar.website, oar.services, oar.tags,
+                    oar.contact_person_name, oar.contact_person_role,
+                    oar.contact_person_phone, oar.contact_person_email,
+                    oar.contact_person_photo_url, oar.requester_name, oar.requester_email,
+                    oar.requester_phone, oar.status, oar.created_at,
+                    oar.reviewed_at, a.email as reviewed_by_email,
+                    c.name as category_name
+                FROM organization_add_requests oar
+                LEFT JOIN categories c ON oar.category_id = c.id
+                LEFT JOIN admins a ON oar.reviewed_by = a.id
+                ORDER BY oar.created_at DESC
+                """
+            )
+            requests = cursor.fetchall()
+            return jsonify({"requests": [dict(req) for req in requests]})
+    except Exception as e:
+        print(f"Ошибка получения заявок на добавление организаций: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
+@app.route("/api/admin/organization-add-requests/<int:request_id>/approve", methods=["POST"])
+@require_auth
+def approve_organization_add_request(request_id: int):
+    """Одобрение заявки на добавление организации"""
+    try:
+        admin_id = request.current_admin["user_id"]
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(
+                "SELECT * FROM organization_add_requests WHERE id = %s AND status = 'pending'",
+                (request_id,),
+            )
+            request_data = cursor.fetchone()
+            if not request_data:
+                return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
+
+            # Создание новой организации
+            text_for_embedding = generate_embedding_text(
+                name=request_data["organization_name"],
+                description=request_data.get("description", ""),
+                services=request_data.get("services", ""),
+                address=request_data.get("address", ""),
+                tags=request_data.get("tags", []),
+                main_service="",
+            )
+            embedding = generate_embedding(text_for_embedding)
+
+            cursor.execute(
+                """
+                INSERT INTO organizations (
+                    name, main_service, category_id, description, address,
+                    phone, email, website, services, tags,
+                    contact_person_name, contact_person_role,
+                    contact_person_phone, contact_person_email,
+                    contact_person_photo_url, embedding
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    request_data["organization_name"],
+                    "",
+                    request_data["category_id"],
+                    request_data["description"],
+                    request_data.get("address"),
+                    request_data.get("phone"),
+                    request_data.get("email"),
+                    request_data.get("website"),
+                    request_data.get("services"),
+                    request_data.get("tags"),
+                    request_data.get("contact_person_name"),
+                    request_data.get("contact_person_role"),
+                    request_data.get("contact_person_phone"),
+                    request_data.get("contact_person_email"),
+                    request_data.get("contact_person_photo_url"),
+                    embedding,
+                ),
+            )
+            new_org_id = cursor.fetchone()[0]
+
+            # Обновляем статус заявки
+            cursor.execute(
+                """
+                UPDATE organization_add_requests
+                SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
+                WHERE id = %s
+                """,
+                (admin_id, request_id),
+            )
+            conn.commit()
+            return jsonify({"message": "Заявка одобрена, организация создана"})
+    except Exception as e:
+        print(f"Ошибка одобрения заявки на добавление организации: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
+@app.route("/api/admin/organization-add-requests/<int:request_id>/reject", methods=["POST"])
+@require_auth
+def reject_organization_add_request(request_id: int):
+    """Отклонение заявки на добавление организации"""
+    try:
+        admin_id = request.current_admin["user_id"]
+        conn = db_manager.get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE organization_add_requests
+                SET status = 'rejected', reviewed_by = %s, reviewed_at = NOW()
+                WHERE id = %s AND status = 'pending'
+                """,
+                (admin_id, request_id),
+            )
+            if cursor.rowcount == 0:
+                return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
+            conn.commit()
+            return jsonify({"message": "Заявка отклонена"})
+    except Exception as e:
+        print(f"Ошибка отклонения заявки на добавление организации: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
 @app.route("/api/admin/pending-requests/<int:request_id>/approve", methods=["POST"])
 @require_auth
 def approve_pending_request(request_id: int):
@@ -614,7 +924,7 @@ def approve_pending_request(request_id: int):
                         embedding,
                     ),
                 )
-                new_org_id = cursor.fetchone()["id"]
+                new_org_id = cursor.fetchone()[0]
 
                 # Создание владельца
                 password_hash = bcrypt.hashpw(
@@ -765,6 +1075,52 @@ def reject_pending_request(request_id: int):
             return jsonify({"message": "Заявка отклонена"})
     except Exception as e:
         print(f"Ошибка отклонения заявки: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
+@app.route("/api/admin/owners/<int:owner_id>/deactivate", methods=["POST"])
+@require_auth
+def deactivate_owner(owner_id: int):
+    """Деактивация владельца организации"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE organization_owners
+                SET is_active = FALSE
+                WHERE id = %s
+                """,
+                (owner_id,),
+            )
+            if cursor.rowcount == 0:
+                return jsonify({"error": "Владелец не найден"}), 404
+            conn.commit()
+            return jsonify({"message": "Владелец деактивирован"})
+    except Exception as e:
+        print(f"Ошибка деактивации владельца: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
+@app.route("/api/admin/owners", methods=["GET"])
+@require_auth
+def get_owners():
+    """Получение списка владельцев организаций"""
+    try:
+        conn = db_manager.get_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""
+                SELECT 
+                    oo.id, oo.full_name, oo.email, oo.phone, oo.is_verified, oo.is_active,
+                    oo.created_at, o.name as organization_name
+                FROM organization_owners oo
+                LEFT JOIN organizations o ON oo.organization_id = o.id
+                ORDER BY oo.created_at DESC
+            """)
+            owners = cursor.fetchall()
+            return jsonify({"owners": [dict(owner) for owner in owners]})
+    except Exception as e:
+        print(f"Ошибка получения владельцев: {e}")
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
@@ -981,6 +1337,71 @@ def claim_organization():
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
+@app.route("/api/organizations/add-request", methods=["POST"])
+def create_organization_add_request():
+    """Создание заявки на добавление организации"""
+    try:
+        data = request.get_json()
+
+        required_fields = ["organization_name", "category_id", "description", "requester_name", "requester_email"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Поле {field} обязательно"}), 400
+
+        email = data["requester_email"].lower()
+        if "@" not in email or "." not in email:
+            return jsonify({"error": "Некорректный email адрес"}), 400
+
+        conn = db_manager.get_connection()
+        with conn.cursor() as cursor:
+            # Проверка существования организации
+            cursor.execute(
+                "SELECT id FROM organizations WHERE name = %s",
+                (data["organization_name"],),
+            )
+            if cursor.fetchone():
+                return jsonify({"error": "Организация с таким названием уже существует"}), 400
+
+            # Создаём заявку на добавление
+            cursor.execute(
+                """
+                INSERT INTO organization_add_requests (
+                    organization_name, category_id, description, address, phone, email,
+                    website, services, tags, contact_person_name, contact_person_role,
+                    contact_person_phone, contact_person_email, contact_person_photo_url,
+                    requester_name, requester_email, requester_phone
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    data["organization_name"],
+                    data["category_id"],
+                    data["description"],
+                    data.get("address"),
+                    data.get("phone"),
+                    data.get("email"),
+                    data.get("website"),
+                    data.get("services"),
+                    data.get("tags"),
+                    data.get("contact_person_name"),
+                    data.get("contact_person_role"),
+                    data.get("contact_person_phone"),
+                    data.get("contact_person_email"),
+                    data.get("contact_person_photo_url"),
+                    data["requester_name"],
+                    email,
+                    data.get("requester_phone"),
+                ),
+            )
+            conn.commit()
+
+            return jsonify(
+                {"message": "Заявка на добавление организации отправлена на модерацию"}
+            ), 201
+    except Exception as e:
+        print(f"Ошибка создания заявки на добавление организации: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+
+
 @app.route("/api/owner/organizations", methods=["PUT"])
 @require_owner_auth
 def update_owner_organization():
@@ -1096,9 +1517,38 @@ def create_tables():
                 """
                 CREATE TABLE IF NOT EXISTS pending_requests (
                     id SERIAL PRIMARY KEY,
-                    request_type VARCHAR(50) NOT NULL, -- new_org, claim_org, update_org
+                    request_type VARCHAR(50) NOT NULL, -- new_org, claim_org, update_org, add_org
                     data JSONB NOT NULL,
                     owner_email VARCHAR(255) NOT NULL,
+                    status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
+                    reviewed_by INTEGER REFERENCES admins(id),
+                    reviewed_at TIMESTAMP WITH TIME ZONE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                """
+            )
+
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS organization_add_requests (
+                    id SERIAL PRIMARY KEY,
+                    organization_name VARCHAR(255) NOT NULL,
+                    category_id INTEGER REFERENCES categories(id),
+                    description TEXT,
+                    address TEXT,
+                    phone VARCHAR(100),
+                    email VARCHAR(100),
+                    website VARCHAR(255),
+                    services TEXT,
+                    tags TEXT,
+                    contact_person_name VARCHAR(255),
+                    contact_person_role VARCHAR(255),
+                    contact_person_phone VARCHAR(100),
+                    contact_person_email VARCHAR(255),
+                    contact_person_photo_url TEXT,
+                    requester_name VARCHAR(255) NOT NULL,
+                    requester_email VARCHAR(255) NOT NULL,
+                    requester_phone VARCHAR(100),
                     status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
                     reviewed_by INTEGER REFERENCES admins(id),
                     reviewed_at TIMESTAMP WITH TIME ZONE,

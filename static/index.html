@@ -447,6 +447,60 @@
                 padding: 20px;
             }
         }
+
+        /* Стили для формы */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 1rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .d-none {
+            display: none !important;
+        }
     </style>
     <!-- Yandex.Maps API -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=ba3261a7-c50d-42cc-9f77-7f40960eefb2&lang=ru_RU" async></script>
@@ -457,6 +511,7 @@
         <div class="container">
             <h1>Помощь в Тюмени</h1>
             <p>Найдите нужную поддержку и услуги в вашем городе</p>
+            <button class="btn btn-primary" onclick="openAddOrgModal()" style="margin-top: 1rem;">Добавить организацию</button>
         </div>
     </header>
 
@@ -569,6 +624,103 @@
         </div>
     </div>
 
+    <!-- Форма добавления организации -->
+    <div id="addOrgModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddOrgModal()">&times;</span>
+            <h2>Добавить организацию</h2>
+            <div id="addOrgAlert" class="alert d-none"></div>
+            <form id="addOrgForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgName">Название организации *</label>
+                        <input type="text" id="orgName" name="organization_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="orgCategory">Категория *</label>
+                        <select id="orgCategory" name="category_id" required>
+                            <option value="">Выберите категорию</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="orgDescription">Описание *</label>
+                    <textarea id="orgDescription" name="description" rows="3" required></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgAddress">Адрес</label>
+                        <input type="text" id="orgAddress" name="address">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgPhone">Телефон</label>
+                        <input type="tel" id="orgPhone" name="phone">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgEmail">Email</label>
+                        <input type="email" id="orgEmail" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgWebsite">Веб-сайт</label>
+                        <input type="url" id="orgWebsite" name="website">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="orgServices">Услуги</label>
+                    <textarea id="orgServices" name="services" rows="2"></textarea>
+                </div>
+                
+                <h3>Контактное лицо</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contactName">Имя</label>
+                        <input type="text" id="contactName" name="contact_person_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="contactRole">Должность</label>
+                        <input type="text" id="contactRole" name="contact_person_role">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contactPhone">Телефон</label>
+                        <input type="tel" id="contactPhone" name="contact_person_phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="contactEmail">Email</label>
+                        <input type="email" id="contactEmail" name="contact_person_email">
+                    </div>
+                </div>
+                
+                <h3>Ваши данные</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="requesterName">Ваше имя *</label>
+                        <input type="text" id="requesterName" name="requester_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="requesterEmail">Ваш email *</label>
+                        <input type="email" id="requesterEmail" name="requester_email" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="requesterPhone">Ваш телефон</label>
+                    <input type="tel" id="requesterPhone" name="requester_phone">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Отправить заявку</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Базовый URL API
         const API_BASE_URL = 'http://82.202.140.221:5000/api';
@@ -580,21 +732,21 @@
 
         // DOMContentLoaded
         document.addEventListener('DOMContentLoaded', function() {
-    // Загружаем категории и организации сразу
-    loadCategories();
-    loadAllOrganizations(); // ← Это покажет все организации
-    setupSearchSuggestions();
+            // Загружаем категории и организации сразу
+            loadCategories();
+            loadAllOrganizations(); // ← Это покажет все организации
+            setupSearchSuggestions();
 
-    // Показываем опрос, но НЕ блокируем контент
-    openSurvey();
+            // Показываем опрос, но НЕ блокируем контент
+            openSurvey();
 
-    // Обработчик поиска
-    document.getElementById('searchInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            performSearch();
-        }
-    });
-});
+            // Обработчик поиска
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        });
 
     
 
@@ -1037,6 +1189,82 @@
                 e.stopPropagation();
             }
         }, { passive: true });
+
+        // Функции для формы добавления организации
+        function openAddOrgModal() {
+            document.getElementById('addOrgModal').classList.remove('hidden');
+            fillCategorySelect();
+        }
+
+        function closeAddOrgModal() {
+            document.getElementById('addOrgModal').classList.add('hidden');
+            document.getElementById('addOrgForm').reset();
+            hideAlert('addOrgAlert');
+        }
+
+        function fillCategorySelect() {
+            const select = document.getElementById('orgCategory');
+            select.innerHTML = '<option value="">Выберите категорию</option>';
+            
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Обработчик отправки формы добавления организации
+        document.getElementById('addOrgForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/organizations/add-request`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('addOrgAlert', result.message || 'Заявка успешно отправлена!', 'success');
+                    e.target.reset();
+                    setTimeout(() => closeAddOrgModal(), 2000);
+                } else {
+                    showAlert('addOrgAlert', result.error || 'Ошибка отправки заявки', 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка отправки заявки:', error);
+                showAlert('addOrgAlert', 'Ошибка подключения к серверу', 'error');
+            }
+        });
+
+        function showAlert(containerId, message, type) {
+            const alertContainer = document.getElementById(containerId);
+            if (alertContainer) {
+                alertContainer.className = `alert alert-${type}`;
+                alertContainer.textContent = message;
+                alertContainer.classList.remove('d-none');
+                
+                // Автоматически скрываем через 5 секунд
+                setTimeout(() => {
+                    alertContainer.classList.add('d-none');
+                }, 5000);
+            }
+        }
+
+        function hideAlert(containerId) {
+            const alertContainer = document.getElementById(containerId);
+            if (alertContainer) {
+                alertContainer.classList.add('d-none');
+            }
+        }
     </script>
 </body>
 </html>
