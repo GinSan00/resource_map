@@ -697,7 +697,7 @@
         async function showOrganizationDetails(id) {
             try {
                 const response = await apiRequest(`/organizations/${id}`);
-                const organization = response.organization;     
+                const organization = response;    
                 const orgPage = document.getElementById('orgPage');
                 const orgDetails = document.getElementById('orgDetails');
                 
