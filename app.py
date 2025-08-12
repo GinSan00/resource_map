@@ -772,106 +772,6 @@ def get_organization_add_requests():
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
-@app.route("/api/admin/organization-add-requests/<int:request_id>/approve", methods=["POST"])
-@require_auth
-def approve_organization_add_request(request_id: int):
-    """Одобрение заявки на добавление организации"""
-    try:
-        admin_id = request.current_admin["user_id"]
-        conn = db_manager.get_connection()
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(
-                "SELECT * FROM organization_add_requests WHERE id = %s AND status = 'pending'",
-                (request_id,),
-            )
-            request_data = cursor.fetchone()
-            if not request_data:
-                return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
-
-            # Создание новой организации
-            text_for_embedding = generate_embedding_text(
-                name=request_data["organization_name"],
-                description=request_data.get("description", ""),
-                services=request_data.get("services", ""),
-                address=request_data.get("address", ""),
-                tags=request_data.get("tags", []),
-                main_service="",
-            )
-            embedding = generate_embedding(text_for_embedding)
-
-            cursor.execute(
-                """
-                INSERT INTO organizations (
-                    name, main_service, category_id, description, address,
-                    phone, email, website, services, tags,
-                    contact_person_name, contact_person_role,
-                    contact_person_phone, contact_person_email,
-                    contact_person_photo_url, embedding
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (
-                    request_data["organization_name"],
-                    "",
-                    request_data["category_id"],
-                    request_data["description"],
-                    request_data.get("address"),
-                    request_data.get("phone"),
-                    request_data.get("email"),
-                    request_data.get("website"),
-                    request_data.get("services"),
-                    request_data.get("tags"),
-                    request_data.get("contact_person_name"),
-                    request_data.get("contact_person_role"),
-                    request_data.get("contact_person_phone"),
-                    request_data.get("contact_person_email"),
-                    request_data.get("contact_person_photo_url"),
-                    embedding,
-                ),
-            )
-            new_org_id = cursor.fetchone()[0]
-
-            # Обновляем статус заявки
-            cursor.execute(
-                """
-                UPDATE organization_add_requests
-                SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
-                WHERE id = %s
-                """,
-                (admin_id, request_id),
-            )
-            conn.commit()
-            return jsonify({"message": "Заявка одобрена, организация создана"})
-    except Exception as e:
-        print(f"Ошибка одобрения заявки на добавление организации: {e}")
-        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
-
-
-@app.route("/api/admin/organization-add-requests/<int:request_id>/reject", methods=["POST"])
-@require_auth
-def reject_organization_add_request(request_id: int):
-    """Отклонение заявки на добавление организации"""
-    try:
-        admin_id = request.current_admin["user_id"]
-        conn = db_manager.get_connection()
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE organization_add_requests
-                SET status = 'rejected', reviewed_by = %s, reviewed_at = NOW()
-                WHERE id = %s AND status = 'pending'
-                """,
-                (admin_id, request_id),
-            )
-            if cursor.rowcount == 0:
-                return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
-            conn.commit()
-            return jsonify({"message": "Заявка отклонена"})
-    except Exception as e:
-        print(f"Ошибка отклонения заявки на добавление организации: {e}")
-        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
-
-
 @app.route("/api/admin/pending-requests/<int:request_id>/approve", methods=["POST"])
 @require_auth
 def approve_pending_request(request_id: int):
@@ -879,159 +779,146 @@ def approve_pending_request(request_id: int):
         admin_id = request.current_admin["user_id"]
         conn = db_manager.get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute("SELECT id, request_type, data, owner_email FROM pending_requests WHERE id = %s AND status = 'pending'",
-                          (request_id,))
+            cursor.execute(
+                "SELECT id, request_type, data, owner_email FROM pending_requests WHERE id = %s AND status = 'pending'",
+                (request_id,),
+            )
             request_data = cursor.fetchone()
             if not request_data:
                 return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
 
-            # ✅ Парсим JSON вручную
-            owner_data = request_data["data"]  # <-- Исправление
+            # ✅ Извлекаем тип заявки и данные
+            request_type = request_data["request_type"]
+            owner_data = request_data["data"]  # Это dict из JSONB поля
 
-            if request_data["request_type"] == "create_owner":
+            # Обработка разных типов заявок
+            if request_type == "create_owner":
+                # Создание владельца (новая организация)
                 full_name = owner_data["full_name"]
                 email = owner_data["email"]
-                password_hash = owner_data["password_hash"]
+                password = owner_data["password"]
                 organization_id = owner_data.get("organization_id")
 
-                cursor.execute("""INSERT INTO organization_owners (full_name, email, password_hash, organization_id)
-                                  VALUES (%s, %s, %s, %s) RETURNING id""",
-                               (full_name, email, password_hash, organization_id))
+                # Хешируем пароль
+                password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+                cursor.execute("""
+                    INSERT INTO organization_owners (full_name, email, password_hash, organization_id, is_verified, is_active)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (full_name, email, password_hash, organization_id, True, True))
                 new_owner_id = cursor.fetchone()["id"]
-
-                cursor.execute("""UPDATE pending_requests
-                                  SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
-                                  WHERE id = %s""",
-                               (admin_id, request_id))
-
-                conn.commit()
-                return jsonify({"message": "Заявка одобрена"})
-
-
-                # Создание владельца
-                password_hash = bcrypt.hashpw(
-                    data["password"].encode("utf-8"), bcrypt.gensalt()
-                ).decode("utf-8")
-                cursor.execute(
-                    """
-                    INSERT INTO organization_owners 
-                    (full_name, email, phone, password_hash, organization_id, is_verified, is_active)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        data["full_name"],
-                        data["email"],
-                        data.get("phone", ""),
-                        password_hash,
-                        new_org_id,
-                        True,
-                        True,
-                    ),
-                )
 
             elif request_type == "claim_org":
                 # Привязка владельца к существующей организации
-                cursor.execute(
-                    "SELECT id FROM organizations WHERE id = %s", (data["org_id"],)
-                )
+                full_name = owner_data["full_name"]
+                email = owner_data["email"]
+                password = owner_data["password"]
+                org_id = owner_data["org_id"]
+
+                # Проверяем, существует ли организация
+                cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
                 if not cursor.fetchone():
                     return jsonify({"error": "Организация не существует"}), 400
 
-                # Проверка, не привязан ли уже владелец
+                # Проверяем, нет ли уже владельца с таким email у этой организации
                 cursor.execute(
                     "SELECT id FROM organization_owners WHERE email = %s AND organization_id = %s",
-                    (data["email"], data["org_id"]),
+                    (email, org_id),
                 )
                 if cursor.fetchone():
-                    return jsonify(
-                        {"error": "Владелец уже привязан к этой организации"}
-                    ), 400
+                    return jsonify({"error": "Владелец уже привязан к этой организации"}), 400
 
-                password_hash = bcrypt.hashpw(
-                    data["password"].encode("utf-8"), bcrypt.gensalt()
-                ).decode("utf-8")
-                cursor.execute(
-                    """
+                password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+                cursor.execute("""
                     INSERT INTO organization_owners 
                     (full_name, email, phone, password_hash, organization_id, is_verified, is_active)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        data["full_name"],
-                        data["email"],
-                        data.get("phone", ""),
-                        password_hash,
-                        data["org_id"],
-                        True,
-                        True,
-                    ),
-                )
+                """, (
+                    full_name,
+                    email,
+                    owner_data.get("phone"),
+                    password_hash,
+                    org_id,
+                    True,
+                    True,
+                ))
 
             elif request_type == "update_org":
-                # Обновление организации
-                org_id = data["organization_id"]
+                # Обновление данных организации
+                org_id = owner_data["organization_id"]
                 cursor.execute("SELECT id FROM organizations WHERE id = %s", (org_id,))
                 if not cursor.fetchone():
                     return jsonify({"error": "Организация не найдена"}), 400
 
+                # Генерация нового эмбеддинга
                 text_for_embedding = generate_embedding_text(
-                    name=data.get("name", ""),
-                    description=data.get("description", ""),
-                    services=data.get("services", ""),
-                    address=data.get("address", ""),
-                    tags=data.get("tags", []),
-                    main_service=data.get("main_service", ""),
+                    name=owner_data.get("name", ""),
+                    description=owner_data.get("description", ""),
+                    services=owner_data.get("services", ""),
+                    address=owner_data.get("address", ""),
+                    tags=owner_data.get("tags", []),
+                    main_service=owner_data.get("main_service", ""),
                 )
                 embedding = generate_embedding(text_for_embedding)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     UPDATE organizations SET
-                        name = %s, main_service = %s, category_id = %s,
-                        description = %s, address = %s, phone = %s,
-                        email = %s, website = %s, services = %s, tags = %s,
-                        contact_person_name = %s, contact_person_role = %s,
-                        contact_person_phone = %s, contact_person_email = %s,
-                        contact_person_photo_url = %s, embedding = %s,
+                        name = %s,
+                        main_service = %s,
+                        category_id = %s,
+                        description = %s,
+                        address = %s,
+                        phone = %s,
+                        email = %s,
+                        website = %s,
+                        services = %s,
+                        tags = %s,
+                        contact_person_name = %s,
+                        contact_person_role = %s,
+                        contact_person_phone = %s,
+                        contact_person_email = %s,
+                        contact_person_photo_url = %s,
+                        embedding = %s,
                         updated_at = NOW()
                     WHERE id = %s
-                    """,
-                    (
-                        data.get("name"),
-                        data.get("main_service"),
-                        data.get("category_id"),
-                        data.get("description"),
-                        data.get("address"),
-                        data.get("phone"),
-                        data.get("email"),
-                        data.get("website"),
-                        data.get("services"),
-                        data.get("tags"),
-                        data.get("contact_person_name"),
-                        data.get("contact_person_role"),
-                        data.get("contact_person_phone"),
-                        data.get("contact_person_email"),
-                        data.get("contact_person_photo_url"),
-                        embedding,
-                        org_id,
-                    ),
-                )
+                """, (
+                    owner_data.get("name"),
+                    owner_data.get("main_service"),
+                    owner_data.get("category_id"),
+                    owner_data.get("description"),
+                    owner_data.get("address"),
+                    owner_data.get("phone"),
+                    owner_data.get("email"),
+                    owner_data.get("website"),
+                    owner_data.get("services"),
+                    owner_data.get("tags"),
+                    owner_data.get("contact_person_name"),
+                    owner_data.get("contact_person_role"),
+                    owner_data.get("contact_person_phone"),
+                    owner_data.get("contact_person_email"),
+                    owner_data.get("contact_person_photo_url"),
+                    embedding,
+                    org_id,
+                ))
 
-            # Обновляем статус заявки
-            cursor.execute(
-                """
+            else:
+                return jsonify({"error": "Неизвестный тип заявки"}), 400
+
+            # ✅ Обновляем статус заявки на "approved"
+            cursor.execute("""
                 UPDATE pending_requests
                 SET status = 'approved', reviewed_by = %s, reviewed_at = NOW()
                 WHERE id = %s
-                """,
-                (admin_id, request_id),
-            )
+            """, (admin_id, request_id))
+
             conn.commit()
             return jsonify({"message": "Заявка одобрена"})
 
     except Exception as e:
         print(f"Ошибка одобрения заявки: {e}")
-        traceback.print_exc()  # Покажет точную строку с ошибкой
+        traceback.print_exc()
         return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
